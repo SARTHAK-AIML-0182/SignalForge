@@ -42,6 +42,11 @@ class BaseEvidenceRepository(ABC):
         pass
 
     @abstractmethod
+    def get_evidence_by_url(self, research_id: str, source_url: str) -> Optional[EvidenceData]:
+        """Retrieve evidence record by research ID and source URL for duplicate checking."""
+        pass
+
+    @abstractmethod
     def list_evidence_by_research(self, research_id: str) -> List[EvidenceData]:
         """List all evidence records for a research investigation."""
         pass
@@ -98,6 +103,33 @@ class SQLiteEvidenceRepository(BaseEvidenceRepository):
                 FROM evidence WHERE evidence_id = ?
                 """,
                 (evidence_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return EvidenceData(
+                evidence_id=row["evidence_id"],
+                research_id=row["research_id"],
+                source_url=row["source_url"],
+                source_name=row["source_name"],
+                source_type=row["source_type"],
+                title=row["title"],
+                retrieved_at=row["retrieved_at"],
+                content=row["content"],
+                confidence=row["confidence"],
+            )
+        finally:
+            conn.close()
+
+    def get_evidence_by_url(self, research_id: str, source_url: str) -> Optional[EvidenceData]:
+        conn = get_connection(self.db_path)
+        try:
+            cursor = conn.execute(
+                """
+                SELECT evidence_id, research_id, source_url, source_name, source_type, title, retrieved_at, content, confidence
+                FROM evidence WHERE research_id = ? AND LOWER(TRIM(source_url)) = LOWER(TRIM(?))
+                """,
+                (research_id, source_url),
             )
             row = cursor.fetchone()
             if not row:
