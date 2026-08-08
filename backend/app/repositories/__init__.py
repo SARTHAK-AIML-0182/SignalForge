@@ -19,6 +19,18 @@ from app.repositories.post_repository import (
     SQLitePostRepository,
     get_post_repository,
 )
+from app.repositories.research_repository import (
+    ResearchData,
+    BaseResearchRepository,
+    SQLiteResearchRepository,
+    get_research_repository,
+)
+from app.repositories.evidence_repository import (
+    EvidenceData,
+    BaseEvidenceRepository,
+    SQLiteEvidenceRepository,
+    get_evidence_repository,
+)
 
 __all__ = [
     "AgentData",
@@ -34,4 +46,12 @@ __all__ = [
     "BasePostRepository",
     "SQLitePostRepository",
     "get_post_repository",
+    "ResearchData",
+    "BaseResearchRepository",
+    "SQLiteResearchRepository",
+    "get_research_repository",
+    "EvidenceData",
+    "BaseEvidenceRepository",
+    "SQLiteEvidenceRepository",
+    "get_evidence_repository",
 ]

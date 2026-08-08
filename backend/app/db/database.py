@@ -88,5 +88,34 @@ def init_db(db_path: Optional[Union[str, Path]] = None) -> None:
                 FOREIGN KEY (topic_id) REFERENCES topics (topic_id) ON DELETE SET NULL
             );
             """)
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS research (
+                research_id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                topic_id TEXT NOT NULL UNIQUE,
+                status TEXT NOT NULL DEFAULT 'pending',
+                confidence REAL DEFAULT 0.0,
+                created_at TEXT NOT NULL,
+                completed_at TEXT,
+                FOREIGN KEY (agent_id) REFERENCES agents (agent_id) ON DELETE CASCADE,
+                FOREIGN KEY (topic_id) REFERENCES topics (topic_id) ON DELETE CASCADE
+            );
+            """)
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS evidence (
+                evidence_id TEXT PRIMARY KEY,
+                research_id TEXT NOT NULL,
+                source_url TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_type TEXT NOT NULL DEFAULT 'web',
+                title TEXT NOT NULL,
+                retrieved_at TEXT NOT NULL,
+                content TEXT NOT NULL,
+                confidence REAL DEFAULT 0.0,
+                FOREIGN KEY (research_id) REFERENCES research (research_id) ON DELETE CASCADE
+            );
+            """)
     finally:
         conn.close()

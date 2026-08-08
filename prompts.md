@@ -622,4 +622,179 @@ Implemented the autonomous Editorial Judgment Engine in `app/services/editorial/
 
 **Commit:**
 
-Pending
+feat: add editorial topic evaluation engine
+
+
+### Session 007 — Research & Evidence Persistence Foundation
+
+**Date:** 2026-08-08
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge autonomous AI persona backend.
+>
+> The following functionality is already implemented and committed:
+>
+> - FastAPI backend
+> - POST /api/agent/init
+> - SQLite persistence
+> - Agent repository
+> - Topic repository
+> - Post repository
+> - Live RSS/Atom topic discovery
+> - Feed parsing and normalization
+> - Network error handling
+> - Topic deduplication
+> - Editorial judgment engine
+> - Multi-factor editorial scoring
+> - Selected/rejected topic persistence
+> - Automated tests
+>
+> Before implementing autonomous research, establish the persistence foundation required for research and evidence.
+>
+> Implement ONLY the research and evidence persistence layer.
+>
+> Create a Research entity representing an investigation performed for a selected topic.
+>
+> Research must store:
+>
+> - research_id
+> - agent_id
+> - topic_id
+> - status
+> - confidence
+> - created_at
+> - completed_at
+>
+> Create an Evidence entity representing a piece of supporting information collected during research.
+>
+> Evidence must store:
+>
+> - evidence_id
+> - research_id
+> - source_url
+> - source_name
+> - source_type
+> - title
+> - retrieved_at
+> - content
+> - confidence
+>
+> Requirements:
+>
+> 1. Preserve the existing SQLite architecture.
+> 2. Do not create another database.
+> 3. Create `ResearchData` and `EvidenceData` dataclasses following the existing repository/data-model conventions.
+> 4. Create `BaseResearchRepository` and `SQLiteResearchRepository`.
+> 5. Create `BaseEvidenceRepository` and `SQLiteEvidenceRepository`.
+> 6. Add repository dependency providers.
+> 7. Export the new repositories and data models through `app.repositories`.
+> 8. Extend the existing SQLite initialization with `research` and `evidence` tables.
+> 9. Maintain foreign-key integrity.
+> 10. Deleting an agent should cascade to its research and evidence.
+> 11. Deleting a topic should cascade to its research and evidence.
+> 12. Deleting a research investigation should cascade to its evidence.
+> 13. Use UTC ISO 8601 timestamps consistently with the existing project.
+> 14. A topic may have only one research investigation. Enforce this through a UNIQUE constraint on `topic_id` and repository-level validation.
+> 15. Research must support creation, retrieval, status updates, confidence updates, and completion.
+> 16. Evidence must support creation, retrieval, and listing by research investigation.
+> 17. Do not implement web research or source fetching yet.
+> 18. Do not implement an LLM researcher yet.
+> 19. Do not implement autonomous scheduling yet.
+> 20. Do not modify the frontend.
+> 21. Do not modify the existing topic discovery or editorial scoring behavior.
+>
+> Testing requirements:
+>
+> Add deterministic repository/database tests covering:
+>
+> - research table initialization
+> - evidence table initialization
+> - research creation
+> - research retrieval
+> - research retrieval by topic
+> - research status updates
+> - research confidence updates
+> - research completion timestamp
+> - multiple evidence records for one research investigation
+> - evidence retrieval
+> - foreign-key cascading behavior
+> - invalid agent/topic references
+> - persistence across separate database connections
+> - duplicate research prevention for the same topic
+>
+> Tests must use isolated temporary databases and must not depend on the live internet or external services.
+>
+> After implementation:
+>
+> - run the complete test suite
+> - verify all existing tests remain passing
+> - inspect the database schema and repository interfaces
+> - verify that research and evidence persistence work across separate connections
+> - verify that both foreign-key integrity and cascading deletion work correctly
+> - explain all files created or modified
+> - do not make unrelated changes.
+>
+> Do not implement functionality beyond the research and evidence persistence foundation.
+
+**Result:**
+
+Implemented the Research & Evidence Persistence Foundation.
+
+Created:
+
+- `backend/app/repositories/research_repository.py`
+- `backend/app/repositories/evidence_repository.py`
+- `backend/tests/test_research_repository.py`
+
+Modified:
+
+- `backend/app/db/database.py`
+- `backend/app/repositories/__init__.py`
+- `prompts.md`
+
+The new `ResearchData` and `EvidenceData` models follow the existing repository architecture.
+
+The `research` table now persists research investigations with status, confidence, and UTC timestamps. The `evidence` table stores source-backed evidence associated with a research investigation.
+
+Research enforces a single investigation per topic through a `UNIQUE` constraint and repository-level validation.
+
+Foreign-key relationships and cascading deletion are enabled for agents, topics, research, and evidence.
+
+**Human Verification:**
+
+- Verified the new research and evidence repository architecture.
+- Verified database initialization for both new tables.
+- Verified research creation, retrieval, status updates, confidence updates, and completion.
+- Verified multiple evidence records can be associated with a research investigation.
+- Verified foreign-key integrity.
+- Verified cascading deletion behavior.
+- Verified duplicate research prevention for the same topic.
+- Verified persistence across separate SQLite connections.
+- Verified the complete automated test suite.
+
+Test result:
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 45 items
+
+tests\test_agent_init.py .....                                           [ 11%]
+tests\test_database.py .....                                             [ 22%]
+tests\test_editorial_engine.py ..........                                [ 44%]
+tests\test_editorial_quality.py ....                                     [ 53%]
+tests\test_research_repository.py ...............                        [ 86%]
+tests\test_topic_discovery.py ......                                     [100%]
+
+======================== 45 passed, 1 warning in 3.38s ========================
+
+**Commit:**
+
+feat: add research and evidence persistence
