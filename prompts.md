@@ -40,7 +40,52 @@ Initialize the frontend development workflow and project architecture.
 
 **Prompt:**
 
-> [Paste the exact prompt used here.]
+You are working on the frontend of a hackathon project called SignalForge.
+
+SignalForge is an autonomous AI technology intelligence agent. Its persona is NOVA, an autonomous technology signal analyst.
+
+I am responsible ONLY for the frontend. Do not modify backend files or backend API behavior.
+
+Create a production-quality React + Vite frontend inside /frontend.
+
+Requirements:
+
+1. Use React with Vite.
+2. Use Tailwind CSS for styling.
+3. Use Lucide React for icons.
+4. Build a professional dark technology intelligence dashboard.
+5. The visual identity should feel like an AI research/control center, not a generic SaaS dashboard.
+6. Create a responsive layout.
+
+The dashboard should have these conceptual areas:
+
+- SignalForge branding
+- NOVA persona information
+- Autonomous agent status
+- Signals discovered
+- Topics rejected
+- Posts published
+- Latest published posts
+- Editorial scores
+- Rejected topics
+- Publishing rationale
+- Sources
+- Autonomous activity timeline
+- Last cycle / next cycle information
+
+For now use mock data ONLY.
+
+Do not implement backend API calls yet.
+
+Do not modify files outside /frontend.
+
+First inspect the repository and then implement the frontend.
+
+Keep the architecture component-based and easy to connect to REST APIs later.
+
+Do not add unnecessary dependencies.
+
+After implementation, run the frontend and verify that it builds successfully.
 
 **AI Action / Output:**
 
