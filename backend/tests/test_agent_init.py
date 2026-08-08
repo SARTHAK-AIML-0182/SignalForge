@@ -1,13 +1,25 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.db.database import init_db
 from app.main import app
-from app.repositories.agent_repository import get_agent_repository
+from app.repositories.agent_repository import SQLiteAgentRepository, get_agent_repository
 
 client = TestClient(app)
 
 
-def test_init_agent_success():
+@pytest.fixture(autouse=True)
+def setup_test_db(tmp_path):
+    """Fixture to override agent repository with an isolated temp database for each test."""
+    test_db = tmp_path / "test_agent_init.db"
+    init_db(test_db)
+    test_repo = SQLiteAgentRepository(test_db)
+    app.dependency_overrides[get_agent_repository] = lambda: test_repo
+    yield test_repo
+    app.dependency_overrides.clear()
+
+
+def test_init_agent_success(setup_test_db):
     """Test successful agent initialization with valid persona name and domain."""
     payload = {
         "persona": {
@@ -23,12 +35,13 @@ def test_init_agent_success():
     assert isinstance(data["agentId"], str)
     assert len(data["agentId"]) > 0
 
-    # Verify state saved in repository
-    repo = get_agent_repository()
-    stored_agent = repo.get_agent(data["agentId"])
+    # Verify state saved in temporary SQLite repository
+    stored_agent = setup_test_db.get_agent(data["agentId"])
     assert stored_agent is not None
     assert stored_agent.name == "NOVA"
     assert stored_agent.domain == "AI & Emerging Technology"
+    assert stored_agent.status == "active"
+    assert stored_agent.initialized_at is not None
 
 
 def test_init_agent_missing_persona():

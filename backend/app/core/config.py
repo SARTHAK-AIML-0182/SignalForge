@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    DB_PATH: str = "data/signalforge.db"
 
     model_config = SettingsConfigDict(
         env_file=".env",

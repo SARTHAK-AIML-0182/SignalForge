@@ -187,3 +187,113 @@ Implemented the `/api/agent/init` endpoint with persona validation, unique agent
 **Commit:**
 
 feat: add agent initialization endpoint
+
+### Session 004 — Persistent Memory Foundation
+
+**Date:** 2026-08-08
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge backend.
+>
+> The agent initialization API has been implemented, tested, committed, and pushed.
+>
+> Now implement the persistent memory foundation using SQLite.
+>
+> The purpose of this task is to create a reliable database layer that will be used by the autonomous agent throughout the rest of the project.
+>
+> Create the following core entities:
+>
+> 1. Agents
+> 2. Topics
+> 3. Posts
+>
+> Agents must store:
+> - agent_id
+> - persona name
+> - persona domain
+> - status
+> - initialized_at
+>
+> Topics must store:
+> - topic_id
+> - agent_id
+> - title
+> - description
+> - source_url
+> - source_name
+> - discovered_at
+> - editorial score
+> - status
+>
+> Posts must store:
+> - post_id
+> - agent_id
+> - topic_id
+> - text
+> - rationale
+> - sources
+> - editorial score
+> - created_at
+>
+> Requirements:
+>
+> 1. Use SQLite.
+> 2. Keep the database file inside the backend project data directory.
+> 3. Create a dedicated database module.
+> 4. Create clear database models/schema definitions.
+> 5. Create repository/data-access functions rather than putting database queries directly inside API routes.
+> 6. Make database initialization automatic when the application starts.
+> 7. Preserve data across application restarts.
+> 8. Use UTC timestamps.
+> 9. Use unique identifiers for agents, topics, and posts.
+> 10. Store post sources in a structured way that can later be returned through the API.
+> 11. Keep the implementation simple and appropriate for a 24-hour hackathon.
+> 12. Do not implement topic discovery yet.
+> 13. Do not implement editorial judgment yet.
+> 14. Do not implement the LLM writer yet.
+> 15. Do not implement the autonomous scheduler yet.
+> 16. Do not modify frontend files.
+> 17. Do not change the existing POST /api/agent/init API contract.
+> 18. Update the existing agent initialization implementation so that newly initialized agents are persisted in SQLite.
+>
+> Add automated tests covering:
+> - database initialization
+> - creating an agent
+> - retrieving an agent
+> - persistence of an agent
+> - creating a topic
+> - creating a post
+>
+> Tests must use a temporary/test database and must not corrupt the development database.
+>
+> After implementation:
+> - run all existing tests
+> - run the new database tests
+> - inspect for errors
+> - explain the files created or modified
+> - do not make unrelated changes.
+>
+> Do not implement functionality beyond this task.
+
+**Result:**
+
+Implemented the persistent SQLite memory foundation for SignalForge. Added database initialization, agent/topic/post persistence, repository abstractions, SQLite repositories, UTC timestamps, foreign-key relationships, and automated database tests. The existing agent initialization functionality was updated to persist initialized agents.
+
+**Human Verification:**
+
+- Reviewed the generated database architecture.
+- Verified the separation between API, repositories, and SQLite database layers.
+- Verified the agents, topics, and posts database schema.
+- Automated test suite passed: 10/10.
+- Existing agent initialization tests passed.
+- Database persistence tests passed.
+- No frontend files were modified.
+
+**Commit:**
+
+feat: add persistent sqlite memory
