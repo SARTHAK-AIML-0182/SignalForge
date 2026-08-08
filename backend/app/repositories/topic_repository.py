@@ -18,6 +18,7 @@ class TopicData:
     discovered_at: Optional[str] = None
     editorial_score: float = 0.0
     status: str = "discovered"
+    rationale: Optional[str] = None
 
 
 class BaseTopicRepository(ABC):
@@ -31,9 +32,21 @@ class BaseTopicRepository(ABC):
         source_url: Optional[str] = None,
         source_name: Optional[str] = None,
         editorial_score: float = 0.0,
-        status: str = "discovered"
+        status: str = "discovered",
+        rationale: Optional[str] = None,
     ) -> TopicData:
         """Create a new topic entity."""
+        pass
+
+    @abstractmethod
+    def update_editorial_decision(
+        self,
+        topic_id: str,
+        status: str,
+        editorial_score: float,
+        rationale: Optional[str] = None,
+    ) -> Optional[TopicData]:
+        """Update editorial decision, score, and rationale for a topic."""
         pass
 
     @abstractmethod
@@ -44,6 +57,11 @@ class BaseTopicRepository(ABC):
     @abstractmethod
     def list_topics_by_agent(self, agent_id: str) -> List[TopicData]:
         """List all topics for an agent."""
+        pass
+
+    @abstractmethod
+    def list_topics_by_status(self, agent_id: str, status: str) -> List[TopicData]:
+        """List topics for an agent filtered by status."""
         pass
 
 
@@ -60,7 +78,8 @@ class SQLiteTopicRepository(BaseTopicRepository):
         source_url: Optional[str] = None,
         source_name: Optional[str] = None,
         editorial_score: float = 0.0,
-        status: str = "discovered"
+        status: str = "discovered",
+        rationale: Optional[str] = None,
     ) -> TopicData:
         now_utc = datetime.now(timezone.utc).isoformat()
         conn = get_connection(self.db_path)
@@ -69,10 +88,10 @@ class SQLiteTopicRepository(BaseTopicRepository):
                 conn.execute(
                     """
                     INSERT INTO topics (
-                        topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status, rationale
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (topic_id, agent_id, title, description, source_url, source_name, now_utc, editorial_score, status)
+                    (topic_id, agent_id, title, description, source_url, source_name, now_utc, editorial_score, status, rationale)
                 )
         finally:
             conn.close()
@@ -86,15 +105,39 @@ class SQLiteTopicRepository(BaseTopicRepository):
             source_name=source_name,
             discovered_at=now_utc,
             editorial_score=editorial_score,
-            status=status
+            status=status,
+            rationale=rationale,
         )
+
+    def update_editorial_decision(
+        self,
+        topic_id: str,
+        status: str,
+        editorial_score: float,
+        rationale: Optional[str] = None,
+    ) -> Optional[TopicData]:
+        conn = get_connection(self.db_path)
+        try:
+            with conn:
+                conn.execute(
+                    """
+                    UPDATE topics
+                    SET status = ?, editorial_score = ?, rationale = ?
+                    WHERE topic_id = ?
+                    """,
+                    (status, editorial_score, rationale, topic_id)
+                )
+        finally:
+            conn.close()
+
+        return self.get_topic(topic_id)
 
     def get_topic(self, topic_id: str) -> Optional[TopicData]:
         conn = get_connection(self.db_path)
         try:
             cursor = conn.execute(
                 """
-                SELECT topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status
+                SELECT topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status, rationale
                 FROM topics WHERE topic_id = ?
                 """,
                 (topic_id,)
@@ -111,7 +154,8 @@ class SQLiteTopicRepository(BaseTopicRepository):
                 source_name=row["source_name"],
                 discovered_at=row["discovered_at"],
                 editorial_score=row["editorial_score"],
-                status=row["status"]
+                status=row["status"],
+                rationale=row["rationale"] if "rationale" in row.keys() else None,
             )
         finally:
             conn.close()
@@ -121,7 +165,7 @@ class SQLiteTopicRepository(BaseTopicRepository):
         try:
             cursor = conn.execute(
                 """
-                SELECT topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status
+                SELECT topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status, rationale
                 FROM topics WHERE agent_id = ? ORDER BY discovered_at DESC
                 """,
                 (agent_id,)
@@ -137,7 +181,37 @@ class SQLiteTopicRepository(BaseTopicRepository):
                     source_name=row["source_name"],
                     discovered_at=row["discovered_at"],
                     editorial_score=row["editorial_score"],
-                    status=row["status"]
+                    status=row["status"],
+                    rationale=row["rationale"] if "rationale" in row.keys() else None,
+                )
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def list_topics_by_status(self, agent_id: str, status: str) -> List[TopicData]:
+        conn = get_connection(self.db_path)
+        try:
+            cursor = conn.execute(
+                """
+                SELECT topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status, rationale
+                FROM topics WHERE agent_id = ? AND status = ? ORDER BY discovered_at DESC
+                """,
+                (agent_id, status)
+            )
+            rows = cursor.fetchall()
+            return [
+                TopicData(
+                    topic_id=row["topic_id"],
+                    agent_id=row["agent_id"],
+                    title=row["title"],
+                    description=row["description"],
+                    source_url=row["source_url"],
+                    source_name=row["source_name"],
+                    discovered_at=row["discovered_at"],
+                    editorial_score=row["editorial_score"],
+                    status=row["status"],
+                    rationale=row["rationale"] if "rationale" in row.keys() else None,
                 )
                 for row in rows
             ]

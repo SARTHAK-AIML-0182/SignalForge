@@ -63,9 +63,16 @@ def init_db(db_path: Optional[Union[str, Path]] = None) -> None:
                 discovered_at TEXT NOT NULL,
                 editorial_score REAL DEFAULT 0.0,
                 status TEXT NOT NULL DEFAULT 'discovered',
+                rationale TEXT,
                 FOREIGN KEY (agent_id) REFERENCES agents (agent_id) ON DELETE CASCADE
             );
             """)
+
+            # Ensure rationale column exists on existing topics tables
+            cursor = conn.execute("PRAGMA table_info(topics);")
+            columns = [row["name"] for row in cursor.fetchall()]
+            if "rationale" not in columns:
+                conn.execute("ALTER TABLE topics ADD COLUMN rationale TEXT;")
 
             conn.execute("""
             CREATE TABLE IF NOT EXISTS posts (

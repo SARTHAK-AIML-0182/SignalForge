@@ -438,3 +438,188 @@ Implemented the live topic discovery subsystem in `app/services/discovery/`. Cre
 **Commit:**
 
 feat: implement live topic discovery and deduplication
+
+
+
+---
+
+### Session 006 — Editorial Judgment Engine
+
+**Date:** 2026-08-08
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge autonomous AI persona backend.
+>
+> The following functionality is already implemented and committed:
+>
+> - FastAPI backend
+> - POST /api/agent/init
+> - SQLite persistence
+> - Agent repository
+> - Topic repository
+> - Post repository
+> - Live RSS/Atom topic discovery
+> - Feed parsing and normalization
+> - Network error handling
+> - Topic deduplication
+> - Automated tests
+>
+> The live discovery subsystem can now discover hundreds of current AI and technology topics.
+>
+> Now implement ONLY the editorial judgment subsystem.
+>
+> The purpose of this subsystem is to make NOVA behave like an autonomous technology editor rather than a simple RSS-to-post generator.
+>
+> NOVA must evaluate discovered topics and intentionally decide whether each topic deserves publication.
+>
+> IMPORTANT:
+>
+> Do not publish every discovered topic.
+>
+> The editorial engine must be selective and must be capable of explicitly rejecting low-value topics.
+>
+> NOVA's editorial identity:
+>
+> Name: NOVA
+>
+> Domain: AI & Emerging Technology
+>
+> Editorial philosophy:
+>
+> "NOVA does not report everything that happens in technology. NOVA identifies developments that materially change how people build, secure, deploy, understand, or interact with AI and emerging technology."
+>
+> NOVA should prioritize:
+>
+> - Major AI research developments
+> - Frontier model capabilities
+> - AI agent architectures and autonomy
+> - AI security and safety
+> - AI infrastructure
+> - Developer tooling that materially changes engineering workflows
+> - Open-source AI developments
+> - Robotics and embodied AI
+> - Significant changes in AI deployment or accessibility
+> - Developments with meaningful technical or industry implications
+>
+> NOVA should generally reject:
+>
+> - Minor product updates
+> - Generic corporate announcements
+> - Promotional content without technical significance
+> - Celebrity/personality-driven technology stories
+> - Repetitive coverage of an already evaluated topic
+> - Topics unrelated to AI or emerging technology
+> - Low-information announcements
+> - Stories whose primary value is speculation or hype
+>
+> Implement an editorial scoring system that evaluates each topic using multiple independent signals.
+>
+> At minimum evaluate:
+>
+> 1. Relevance to NOVA's domain
+> 2. Timeliness
+> 3. Technical significance
+> 4. Potential impact
+> 5. Novelty
+> 6. Persona alignment
+>
+> Use a transparent weighted scoring model rather than a single arbitrary score.
+>
+> The implementation should expose a clear service-level interface conceptually similar to:
+>
+> evaluate_topic(topic) -> editorial decision
+>
+> The result should contain enough information to explain:
+>
+> - the score
+> - whether the topic was selected or rejected
+> - the individual scoring factors
+> - the reason for the decision
+>
+> Use a configurable publication threshold.
+>
+> Topics above the threshold should be marked as selected.
+>
+> Topics below the threshold should be marked as rejected.
+>
+> IMPORTANT:
+>
+> Rejected topics must also be persisted so that NOVA's memory contains editorial decisions, not only published content.
+>
+> Extend the existing topic persistence model if necessary.
+>
+> Do not create a second database.
+>
+> Do not create a second repository architecture.
+>
+> Preserve the existing SQLite architecture and TopicRepository.
+>
+> The editorial engine must also prevent unnecessary repetition by considering previously evaluated or published topics.
+>
+> Do not implement:
+>
+> - AI-generated post writing
+> - Autonomous scheduling
+> - Feed endpoint changes
+> - Social media integration
+> - Frontend changes
+> - Real social media publishing
+>
+> Keep the implementation modular so a future LLM-based writer can consume the selected topics.
+>
+> Testing requirements:
+>
+> Add automated tests for:
+>
+> 1. High-value topic selection
+> 2. Low-value topic rejection
+> 3. Domain relevance scoring
+> 4. Timeliness scoring
+> 5. Technical significance scoring
+> 6. Novelty handling
+> 7. Persona alignment
+> 8. Configurable publication threshold
+> 9. Persistence of editorial decisions
+> 10. Previously evaluated topics not being unnecessarily selected again
+>
+> Tests must not require live internet access or an external LLM.
+>
+> Use deterministic scoring for the initial implementation so the behavior is reproducible and testable.
+>
+> After implementation:
+>
+> - run the complete test suite
+> - inspect the implementation for unnecessary complexity
+> - verify that both selected and rejected decisions are persisted
+> - verify that the existing discovery functionality remains intact
+> - do not modify unrelated functionality.
+>
+> Do not implement functionality beyond the editorial judgment subsystem.
+
+**Result:**
+
+Implemented the autonomous Editorial Judgment Engine in `app/services/editorial/`. Built multi-factor scoring (`scorer.py`) evaluating Domain Relevance, Technical Significance, Potential Impact, Novelty, Persona Alignment, and Timeliness. Built `evaluate_topic` and `evaluate_agent_topics` (`engine.py`) with configurable publication thresholding. Updated SQLite `TopicRepository` to persist both `selected` and `rejected` topics along with editorial scores and rationales. Added 10 automated unit tests in `tests/test_editorial_engine.py`.
+
+**Human Verification:**
+
+- Verified multi-factor weighted scoring and configurable publication threshold (default `6.5`).
+- Evaluated 267 real discovered topics:
+  - Selected: 25 high-value topics (9.4%)
+  - Rejected: 242 low-value/marketing/PR topics (90.6%)
+- Verified persistence of both `selected` and `rejected` statuses, scores, and human-readable rationales in SQLite.
+- Verified novelty checking against previously evaluated topics.
+- Verified the complete automated test suite:
+  - `test_agent_init.py`: 5 passed
+  - `test_database.py`: 5 passed
+  - `test_editorial_engine.py`: 10 passed
+  - `test_topic_discovery.py`: 6 passed
+  - **Total: 26 passed**
+
+**Commit:**
+
+Pending
