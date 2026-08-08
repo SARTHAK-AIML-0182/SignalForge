@@ -1,17 +1,35 @@
-import uuid
+import secrets
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Query, status
+from pydantic import BaseModel, Field, field_validator
+
+from app.repositories.agent_repository import BaseAgentRepository, get_agent_repository
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
 
+class PersonaSchema(BaseModel):
+    name: str = Field(..., description="Persona name")
+    domain: str = Field(..., description="Persona domain focus")
+
+    @field_validator("name", "domain", mode="before")
+    @classmethod
+    def validate_non_empty(cls, value: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError("Field must be a string")
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Field cannot be empty or whitespace only")
+        return stripped
+
+
+class InitRequest(BaseModel):
+    persona: PersonaSchema
+
+
 class InitResponse(BaseModel):
-    agentId: str = Field(..., description="Unique identifier for the initialized agent session")
-    status: str = Field(default="initialized", description="Initialization status string")
-    message: str = Field(default="Agent initialized successfully (placeholder)", description="Status description")
-    timestamp: str = Field(..., description="ISO 8601 UTC timestamp of initialization")
+    agentId: str = Field(..., description="Cryptographically safe unique agent identifier")
 
 
 class FeedItem(BaseModel):
@@ -30,21 +48,22 @@ class FeedResponse(BaseModel):
     timestamp: str = Field(..., description="ISO 8601 UTC timestamp of feed request")
 
 
-@router.post("/init", response_model=InitResponse)
-def init_agent():
+@router.post("/init", response_model=InitResponse, status_code=status.HTTP_200_OK)
+def init_agent(
+    payload: InitRequest,
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository)
+):
     """
     Initialize the autonomous agent session.
-    Called exactly once by the evaluator at session start.
-    Returns an agentId to query feed updates.
+    Validates persona, generates a cryptographically safe agentId, and persists agent state.
     """
-    agent_id = f"agent-{uuid.uuid4().hex[:12]}"
-    now_utc = datetime.now(timezone.utc).isoformat()
-    return InitResponse(
-        agentId=agent_id,
-        status="initialized",
-        message="Agent initialized successfully (placeholder)",
-        timestamp=now_utc,
+    agent_id = f"agent-{secrets.token_hex(16)}"
+    agent_repo.save_agent(
+        agent_id=agent_id,
+        name=payload.persona.name,
+        domain=payload.persona.domain,
     )
+    return InitResponse(agentId=agent_id)
 
 
 @router.get("/feed", response_model=FeedResponse)

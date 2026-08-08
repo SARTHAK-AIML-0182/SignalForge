@@ -103,3 +103,87 @@ Antigravity created the initial FastAPI backend structure, requirements file, co
 - Verified frontend files were not modified.
 - Backend imports successfully.
 - Health endpoint responds successfully.
+
+### Session 003 — Agent Initialization API
+
+**Date:** 2026-08-08
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge backend.
+>
+> The initial FastAPI backend skeleton has already been created and committed.
+>
+> Now implement ONLY the agent initialization API.
+>
+> Requirement:
+>
+> POST /api/agent/init
+>
+> Request:
+>
+> {
+>   "persona": {
+>     "name": "NOVA",
+>     "domain": "AI & Emerging Technology"
+>   }
+> }
+>
+> Response:
+>
+> {
+>   "agentId": "unique-id"
+> }
+>
+> Implementation requirements:
+>
+> 1. Create appropriate Pydantic request/response schemas.
+> 2. Validate that persona.name and persona.domain are present and non-empty.
+> 3. Generate a cryptographically safe unique agentId.
+> 4. Store the initialized agent information in a way that will later support persistent SQLite storage.
+> 5. Keep the implementation modular so the database layer can be replaced or extended later.
+> 6. Return the generated agentId.
+> 7. Do not implement topic discovery yet.
+> 8. Do not implement the LLM writer yet.
+> 9. Do not implement the autonomous scheduler yet.
+> 10. Do not implement the feed endpoint yet unless it is required by the existing project structure.
+> 11. Do not modify frontend files.
+> 12. Do not introduce unnecessary dependencies.
+> 13. Follow the existing project structure and coding conventions.
+>
+> Also add basic tests for:
+> - successful initialization
+> - missing persona
+> - empty persona name
+> - empty persona domain
+>
+> After implementation:
+> - run the tests
+> - run a basic API validation if possible
+> - inspect for errors
+> - explain the files changed
+> - do not modify unrelated files.
+>
+> Do not implement any functionality beyond the requirements of this task.
+
+**Result:**
+
+Implemented the `/api/agent/init` endpoint with persona validation, unique agent ID generation, repository-based agent storage, and automated tests.
+
+**Human Verification:**
+
+- FastAPI Swagger UI successfully opened at `/api/docs`.
+- Confirmed the required endpoint is exactly `POST /api/agent/init`.
+- Successfully tested initialization with the NOVA persona.
+- Verified that a unique `agentId` is returned.
+- Tested invalid empty persona name.
+- Tested invalid empty persona domain.
+- Automated test suite passed: 5/5 tests.
+
+**Commit:**
+
+feat: add agent initialization endpoint
