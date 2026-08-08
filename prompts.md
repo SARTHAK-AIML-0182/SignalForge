@@ -297,3 +297,144 @@ Implemented the persistent SQLite memory foundation for SignalForge. Added datab
 **Commit:**
 
 feat: add persistent sqlite memory
+
+
+### Session 005 — Live Topic Discovery
+
+**Date:** 2026-08-08
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge autonomous AI persona backend.
+>
+> The following functionality is already implemented and committed:
+>
+> - FastAPI backend
+> - POST /api/agent/init
+> - SQLite persistence
+> - Agent repository
+> - Topic repository
+> - Post repository
+> - Automated tests
+>
+> Now implement ONLY the live topic discovery subsystem.
+>
+> The purpose of this subsystem is to independently discover current AI and technology topics from live public information sources.
+>
+> IMPORTANT:
+>
+> This subsystem must retrieve real information at runtime. Do not hardcode article titles, fake topics, example stories, or static content.
+>
+> Use publicly accessible RSS/Atom feeds as the primary discovery mechanism so the system does not require paid APIs or API keys.
+>
+> Implement the following architecture:
+>
+> 1. A dedicated topic discovery module/service.
+> 2. A configurable list of live RSS/Atom feed URLs.
+> 3. A feed fetcher that retrieves feeds over HTTP.
+> 4. RSS and Atom parsing.
+> 5. Normalization of feed entries into a common topic representation.
+> 6. Extraction of:
+>    - title
+>    - description/summary
+>    - source URL
+>    - source name
+>    - publication/discovery timestamp
+> 7. Basic validation so malformed feed entries do not crash the entire discovery process.
+> 8. Timeout handling for network requests.
+> 9. Graceful handling of unavailable feeds.
+> 10. Duplicate detection within a discovery cycle.
+> 11. Persistent storage of discovered topics using the existing TopicRepository.
+> 12. Do not create a second database or repository system.
+> 13. Preserve the existing database architecture.
+>
+> Topic discovery should be focused on AI and technology.
+>
+> The initial source configuration should prioritize reputable sources covering:
+> - artificial intelligence
+> - machine learning
+> - AI agents
+> - AI infrastructure
+> - open-source AI
+> - AI security
+> - robotics
+> - developer tools
+> - major AI research developments
+>
+> Keep source configuration centralized so additional feeds can easily be added later.
+>
+> Add a service-level function with a clear interface, conceptually similar to:
+>
+> discover_topics(agent_id) -> list of discovered topics
+>
+> The exact implementation may differ if the existing project architecture suggests a better design.
+>
+> Requirements:
+>
+> - Use the existing SQLite TopicRepository.
+> - Generate unique topic IDs.
+> - Store discovered topics with status="discovered".
+> - Store source URL and source name.
+> - Store UTC timestamps.
+> - Do not call an LLM in this subsystem.
+> - Do not implement editorial scoring yet.
+> - Do not implement post generation yet.
+> - Do not implement the autonomous scheduler yet.
+> - Do not implement the feed endpoint yet.
+> - Do not modify frontend files.
+> - Do not change POST /api/agent/init.
+> - Do not introduce unnecessary dependencies.
+>
+> Testing requirements:
+>
+> 1. Add tests using mocked HTTP/feed responses.
+> 2. Tests must not depend on the live internet.
+> 3. Test successful RSS parsing.
+> 4. Test Atom parsing if supported.
+> 5. Test malformed feed handling.
+> 6. Test unavailable feed handling.
+> 7. Test duplicate detection.
+> 8. Test persistence through TopicRepository.
+> 9. Run the complete existing test suite as well.
+>
+> The production discovery service must use real live feeds, while tests must use mocked responses.
+>
+> After implementation:
+>
+> - run all tests
+> - inspect the implementation for unnecessary complexity
+> - verify that no fake/static topics were introduced
+> - explain files created or modified
+> - do not modify unrelated files.
+>
+> Do not implement functionality beyond live topic discovery.
+
+**Result:**
+
+Implemented the live topic discovery subsystem in `app/services/discovery/`. Created centralized feed source configuration in `sources.py`, robust RSS 2.0 and Atom XML parser in `feed_parser.py`, and `discover_topics(agent_id)` service in `topic_discovery.py`. Integrated HTTP fetching via `httpx` with timeout and error handling, in-memory & database deduplication, and persistence into SQLite `TopicRepository` with status `"discovered"`. Added automated unit tests using mocked HTTP responses in `tests/test_topic_discovery.py`.
+
+**Human Verification:**
+
+- Verified live discovery against real public AI/technology RSS feeds.
+- Live discovery successfully retrieved hundreds of current topics from public sources.
+- Verified RSS/Atom feed parsing and normalization.
+- Verified graceful handling of unavailable feeds. The VentureBeat feed failed with a DNS resolution error, but discovery continued successfully using the remaining sources.
+- Verified topic persistence in SQLite.
+- Verified cross-run deduplication:
+  - First discovery: 865 new topics discovered and stored.
+  - Second discovery: 0 new topics discovered.
+  - Total stored topics after second run: 865.
+- Verified that duplicate topics are rejected based on previously stored source URLs/titles.
+- Verified the complete automated test suite:
+  - `test_agent_init.py`: 5 passed
+  - `test_database.py`: 5 passed
+  - `test_topic_discovery.py`: 6 passed
+  - **Total: 16 passed**
+
+**Commit:**
+
+feat: implement live topic discovery and deduplication
