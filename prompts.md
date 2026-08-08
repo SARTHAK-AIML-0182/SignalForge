@@ -813,67 +813,28 @@ feat: add research and evidence persistence
 
 > You are continuing development of the SignalForge autonomous AI persona backend.
 >
-> Now implement ONLY the autonomous Research & Evidence Collection Engine.
->
-> The purpose of this subsystem is to take a selected editorial topic and independently gather supporting evidence from publicly accessible web sources.
-
-**Result:**
-
-Implemented the autonomous Research & Evidence Collection Engine in `app/services/research/`. Created HTML content extractor (`extractor.py`), evidence & research confidence scoring (`scorer.py`), and research workflow engine (`engine.py`). Added `get_evidence_by_url` to `EvidenceRepository` for duplicate evidence prevention. Added 12 automated unit tests in `tests/test_research_engine.py`.
-
-**Human Verification:**
-
-- Verified automated web content retrieval, HTML cleaning, title extraction, and source name normalization.
-- Verified duplicate source URL detection and prevention within research investigations.
-- Verified deterministic evidence confidence scoring (domain reputation, content length, primary source bonus) and research confidence scoring (0.0 to 1.0 scale).
-- Verified status transitions (`pending` -> `in_progress` -> `completed` / `failed`) and UTC `completed_at` timestamps.
-- Performed controlled live research test against real selected topic from `https://huggingface.co/blog/autoround`: status `completed`, confidence `0.98`, 1 evidence item extracted and persisted in SQLite.
-- Verified the complete automated test suite:
-  - `test_agent_init.py`: 5 passed
-  - `test_database.py`: 5 passed
-  - `test_editorial_engine.py`: 10 passed
-  - `test_editorial_quality.py`: 4 passed
-  - `test_research_engine.py`: 12 passed
-  - `test_research_repository.py`: 15 passed
-  - `test_topic_discovery.py`: 6 passed
-  - **Total: 57 passed**
-
-**Commit:**
-
-Pending### Session 008 — Autonomous Research & Evidence Collection Engine
-
-**Date:** 2026-08-08
-
-**Tool:** Google Antigravity
-
-**Developer:** Backend
-
-**Prompt:**
-
-> You are continuing development of the SignalForge autonomous AI persona backend.
->
 > The following functionality is already implemented and committed:
 >
-> * FastAPI backend
-> * POST /api/agent/init
-> * SQLite persistence
-> * Agent repository
-> * Topic repository
-> * Post repository
-> * Live RSS/Atom topic discovery
-> * Feed parsing and normalization
-> * Network error handling
-> * Topic deduplication
-> * Editorial judgment engine
-> * Multi-factor editorial scoring
-> * Selected/rejected topic persistence
-> * Research repository
-> * Evidence repository
-> * Research/evidence SQLite schema
-> * Foreign-key integrity and cascading behavior
-> * Automated tests
+> - FastAPI backend
+> - POST /api/agent/init
+> - SQLite persistence
+> - Agent repository
+> - Topic repository
+> - Post repository
+> - Live RSS/Atom topic discovery
+> - Feed parsing and normalization
+> - Network error handling
+> - Topic deduplication
+> - Editorial judgment engine
+> - Multi-factor editorial scoring
+> - Selected/rejected topic persistence
+> - Research repository
+> - Evidence repository
+> - Research and evidence SQLite schema
+> - Foreign-key integrity and cascading behavior
+> - Automated tests
 >
-> Session 007 established the persistence foundation for research and evidence.
+> Session 007 established the persistence foundation required for research and evidence collection.
 >
 > Now implement ONLY the autonomous Research & Evidence Collection Engine.
 >
@@ -881,7 +842,7 @@ Pending### Session 008 — Autonomous Research & Evidence Collection Engine
 >
 > The engine must NOT simply copy the original RSS description and call that research.
 >
-> Research should attempt to gather multiple independent sources when possible and preserve the source-backed evidence required for a future AI writer.
+> Research should attempt to gather multiple independent sources when possible and preserve source-backed evidence required by a future AI writer.
 >
 > Implement a clear service-level interface conceptually similar to:
 >
@@ -906,11 +867,11 @@ Pending### Session 008 — Autonomous Research & Evidence Collection Engine
 >
 > Use publicly accessible web sources and prioritize:
 >
-> * the original source associated with the topic
-> * reputable technology publications
-> * official company/project announcements
-> * research papers or technical documentation when relevant
-> * other reputable public sources
+> - the original source associated with the topic
+> - reputable technology publications
+> - official company/project announcements
+> - research papers or technical documentation when relevant
+> - other reputable public sources
 >
 > Do not require paid APIs or API keys.
 >
@@ -920,17 +881,17 @@ Pending### Session 008 — Autonomous Research & Evidence Collection Engine
 >
 > Implement:
 >
-> * HTTP request timeouts
-> * graceful network failure handling
-> * HTTP error handling
-> * malformed page handling
-> * basic HTML content extraction
-> * source URL preservation
-> * source name preservation
-> * source title extraction
-> * retrieval timestamp
+> - HTTP request timeouts
+> - graceful network failure handling
+> - HTTP error handling
+> - malformed page handling
+> - basic HTML content extraction
+> - source URL preservation
+> - source name preservation
+> - source title extraction
+> - retrieval timestamp
 >
-> Keep extraction deliberately simple and robust enough for a hackathon.
+> Keep extraction deliberately simple and robust enough for the current project.
 >
 > Do not build a full web crawler or recursively crawl arbitrary links.
 >
@@ -950,10 +911,10 @@ Pending### Session 008 — Autonomous Research & Evidence Collection Engine
 >
 > Research must support:
 >
-> * `pending`
-> * `in_progress`
-> * `completed`
-> * `failed`
+> - `pending`
+> - `in_progress`
+> - `completed`
+> - `failed`
 >
 > A successful research task should end in `completed`.
 >
@@ -963,23 +924,23 @@ Pending### Session 008 — Autonomous Research & Evidence Collection Engine
 >
 > Use the existing:
 >
-> * TopicData
-> * TopicRepository
-> * ResearchData
-> * ResearchRepository
-> * EvidenceData
-> * EvidenceRepository
+> - TopicData
+> - TopicRepository
+> - ResearchData
+> - ResearchRepository
+> - EvidenceData
+> - EvidenceRepository
 >
 > Do not create duplicate models or repositories.
 >
 > Keep the research engine independent from:
 >
-> * post generation
-> * LLM writing
-> * autonomous scheduling
-> * feed API changes
-> * social media publishing
-> * frontend
+> - post generation
+> - LLM writing
+> - autonomous scheduling
+> - feed API changes
+> - social media publishing
+> - frontend
 >
 > Add deterministic automated tests covering:
 >
@@ -1004,16 +965,16 @@ Pending### Session 008 — Autonomous Research & Evidence Collection Engine
 >
 > After implementation:
 >
-> * run the complete test suite
-> * verify all existing functionality remains intact
-> * inspect the research workflow for unnecessary complexity
-> * verify that no fake/static evidence was introduced
-> * verify that evidence is actually persisted
-> * verify research status transitions
-> * verify confidence calculation
-> * perform one controlled live research test against a real public source if practical
-> * explain the files created or modified
-> * identify assumptions and limitations
+> - run the complete test suite
+> - verify all existing functionality remains intact
+> - inspect the research workflow for unnecessary complexity
+> - verify that no fake/static evidence was introduced
+> - verify that evidence is actually persisted
+> - verify research status transitions
+> - verify confidence calculation
+> - perform one controlled live research test against a real public source if practical
+> - explain the files created or modified
+> - identify assumptions and limitations
 >
 > Do NOT implement the LLM writer.
 >
@@ -1035,16 +996,16 @@ Implemented the Autonomous Research & Evidence Collection Engine.
 
 Created:
 
-* `backend/app/services/research/extractor.py`
-* `backend/app/services/research/scorer.py`
-* `backend/app/services/research/engine.py`
-* `backend/app/services/research/__init__.py`
-* `backend/tests/test_research_engine.py`
+- `backend/app/services/research/extractor.py`
+- `backend/app/services/research/scorer.py`
+- `backend/app/services/research/engine.py`
+- `backend/app/services/research/__init__.py`
+- `backend/tests/test_research_engine.py`
 
 Modified:
 
-* `backend/app/repositories/evidence_repository.py`
-* `prompts.md`
+- `backend/app/repositories/evidence_repository.py`
+- `prompts.md`
 
 The research engine now orchestrates the complete research workflow:
 
@@ -1058,23 +1019,22 @@ No LLM, scheduler, publishing, social media, or frontend functionality was intro
 
 **Human Verification:**
 
-* Verified correct research status transitions.
-* Verified graceful handling of HTTP and timeout failures.
-* Verified duplicate evidence prevention using normalized source URLs.
-* Verified HTML content is cleaned before persistence.
-* Verified deterministic confidence scoring bounded between `0.0` and `1.0`.
-* Verified configurable `max_sources` and HTTP timeout limits.
-* Verified the existing repository architecture was preserved.
-* Verified subsystem isolation from LLM generation, scheduling, publishing, and frontend functionality.
-* Verified all automated tests pass.
-* Performed a controlled live research test against a real public source:
-
-  * Source: Hugging Face blog
-  * Topic: AutoRound
-  * Status: `completed`
-  * Confidence: `0.98`
-  * Evidence count: `1`
-  * Evidence successfully persisted in SQLite.
+- Verified correct research status transitions.
+- Verified graceful handling of HTTP and timeout failures.
+- Verified duplicate evidence prevention using normalized source URLs.
+- Verified HTML content is cleaned before persistence.
+- Verified deterministic confidence scoring bounded between `0.0` and `1.0`.
+- Verified configurable `max_sources` and HTTP timeout limits.
+- Verified the existing repository architecture was preserved.
+- Verified subsystem isolation from LLM generation, scheduling, publishing, and frontend functionality.
+- Verified all automated tests pass.
+- Performed a controlled live research test against a real public source:
+  - Source: Hugging Face blog
+  - Topic: AutoRound
+  - Status: `completed`
+  - Confidence: `0.98`
+  - Evidence count: `1`
+  - Evidence successfully persisted in SQLite.
 
 **Automated Test Result:**
 
@@ -1086,27 +1046,3 @@ plugins: anyio-4.14.2
 collected 57 items
 
 ======================== 57 passed in 4.60s ========================
-```
-
-**Assumptions & Limitations:**
-
-* HTML extraction uses lightweight regex-based cleaning and entity unescaping rather than a full DOM parser.
-* Research is intentionally bounded by a configurable `max_sources` limit, defaulting to `3`.
-* HTTP requests use a configurable timeout, defaulting to `10.0` seconds.
-* The current implementation does not use an LLM for research or confidence scoring.
-* Research currently focuses on direct public web sources rather than recursive crawling.
-
-**Code Review Verification:**
-
-* Confirmed `pending -> in_progress -> completed/failed` workflow.
-* Confirmed network errors are handled without crashing the workflow.
-* Confirmed duplicate URLs are prevented within a research investigation.
-* Confirmed raw HTML is cleaned before evidence persistence.
-* Confirmed confidence scoring is deterministic and bounded.
-* Confirmed source and timeout limits are enforced.
-* Confirmed existing repository architecture is preserved.
-* Confirmed no unrelated subsystems were introduced.
-
-**Commit:**
-
-Pending
