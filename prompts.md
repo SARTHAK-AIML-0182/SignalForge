@@ -3172,3 +3172,101 @@ tests\test_topic_discovery.py ......                                     [100%]
 feat: add publishing service and dry-run adapter
 
 
+### Session 014 — Autonomous Agent Workflow Orchestration
+
+**Date:** 2026-08-09
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+The following backend subsystems are already implemented, tested, committed, and pushed:
+- FastAPI backend
+- POST /api/agent/init
+- SQLite persistence
+- Agent repository
+- Topic repository
+- Post repository
+- Live RSS/Atom topic discovery
+- Feed parsing and normalization
+- Topic deduplication
+- Editorial judgment engine
+- Multi-factor editorial scoring
+- Selected/rejected topic persistence
+- Research repository
+- Evidence repository
+- Autonomous Research & Evidence Collection Engine
+- Web content extraction
+- Duplicate evidence prevention
+- Deterministic evidence confidence scoring
+- Deterministic research confidence scoring
+- Research Quality & Evidence Validation
+- Research synthesis engine
+- Content brief layer
+- Evidence-grounded content writer
+- Safe publishing & output pipeline
+
+Goal: Implement the Autonomous Agent Workflow Orchestration Layer (`backend/app/services/workflow/`). Connect all existing SignalForge subsystems into a 9-stage deterministic pipeline (`Discovery -> Editorial -> Research -> Validation -> Synthesis -> Brief -> Writer -> Gate -> Dry-Run Publishing`).
+
+**Result:**
+
+Implemented the Autonomous Agent Workflow Orchestration Layer in `app/services/workflow/` (`models.py`, `orchestrator.py`, `__init__.py`). Connects all existing SignalForge subsystems into a 9-stage deterministic pipeline (`Discovery -> Editorial -> Research -> Validation -> Synthesis -> Brief -> Writer -> Gate -> Dry-Run Publishing`). Features stage-level status reporting (`WorkflowStageResult`), topic-level failure isolation (a single topic failing research or validation does not halt other topics), configuration options (`WorkflowConfig`), and 9-stage end-to-end inspectable traceability (`workflow -> topic -> research -> evidence -> validation -> finding -> claim -> draft -> publication`). Added 20 automated unit tests in `tests/test_workflow.py`.
+
+**Human Verification:**
+
+- Verified 9-stage sequential pipeline execution (`topic_discovery -> editorial_evaluation -> research -> research_validation -> research_synthesis -> content_brief -> draft_generation -> publishability_check -> dry_run_publication`).
+- Verified topic-level failure isolation: failed research or unpublishable draft on one topic isolates the error and allows parallel topics to proceed.
+- Verified mandatory publishability gate enforcement (`draft.is_publishable is True` required before dry-run publishing stage).
+- Verified complete 9-stage end-to-end traceability mapping across all pipeline stages.
+- Executed controlled live workflow integration test (`scratch/test_live_workflow.py`) against `data/signalforge.db`: discovered 865 topics, evaluated 865 topics (selected 108), researched top selected topic, validated research (`acceptable`, score 0.84), synthesized 5 findings, generated content brief with 5 claims & 6 writing constraints, generated publishable 5-section draft, passed publishability check, and completed dry-run local publishing (`pub-70039e4bb69e`). Zero external publishing network calls performed.
+- Verified complete unit test suite: 161 passed out of 161 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 161 items
+
+tests\test_agent_init.py .....                                           [  3%]
+tests\test_content_brief.py ................                             [ 13%]
+tests\test_database.py .....                                             [ 16%]
+tests\test_editorial_engine.py ..........                                [ 22%]
+tests\test_editorial_quality.py ....                                     [ 24%]
+tests\test_publishing.py ..................                              [ 36%]
+tests\test_research_engine.py ............                               [ 43%]
+tests\test_research_repository.py ...............                        [ 52%]
+tests\test_research_synthesis.py ................                        [ 62%]
+tests\test_research_validation.py ..............                         [ 71%]
+tests\test_research_writer.py ....................                       [ 83%]
+tests\test_topic_discovery.py ......                                     [ 87%]
+tests\test_workflow.py ....................                              [100%]
+
+======================= 161 passed, 1 warning in 50.24s =======================
+```
+
+**Assumptions & Limitations:**
+
+- **Synchronous Sequential Topic Processing**: Topics selected during editorial evaluation are processed sequentially in the current turn without async background workers.
+- **Local Simulation**: Dry-run publishing stage defaults to local dry-run simulation without calling external social media APIs or background job queues.
+
+**Code Review Verification:**
+
+- Verified `run_agent_workflow()` returns structured `AgentWorkflowResult`.
+- Verified 9-stage pipeline progression and stage-level status logging.
+- Verified strict publishability gate enforcement before calling `publish_draft()`.
+- Verified zero real external social media API calls (0 external publishing requests sent).
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+feat: add autonomous workflow orchestration
+
+
