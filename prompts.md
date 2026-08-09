@@ -1630,4 +1630,6 @@ tests\test_topic_discovery.py ......                                     [100%]
 
 **Commit:**
 
-Pending
+feat: add research synthesis and intelligence layer
+
+
