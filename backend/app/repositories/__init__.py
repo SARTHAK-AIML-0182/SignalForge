@@ -7,6 +7,12 @@ from app.repositories.agent_repository import (
     SQLiteAgentRepository,
     get_agent_repository,
 )
+from app.repositories.persona_repository import (
+    AgentPersonaData,
+    BasePersonaRepository,
+    SQLitePersonaRepository,
+    get_persona_repository,
+)
 from app.repositories.topic_repository import (
     TopicData,
     BaseTopicRepository,
@@ -43,6 +49,10 @@ __all__ = [
     "InMemoryAgentRepository",
     "SQLiteAgentRepository",
     "get_agent_repository",
+    "AgentPersonaData",
+    "BasePersonaRepository",
+    "SQLitePersonaRepository",
+    "get_persona_repository",
     "TopicData",
     "BaseTopicRepository",
     "SQLiteTopicRepository",

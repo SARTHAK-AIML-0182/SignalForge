@@ -1,5 +1,9 @@
 """Autonomous Agent Workflow Orchestration package for SignalForge."""
 
+from app.services.workflow.diagnostics import (
+    TopicFailureDiagnostic,
+    sanitize_failure_reason,
+)
 from app.services.workflow.governance import (
     WorkflowGovernanceDecision,
     evaluate_workflow_governance,
@@ -25,4 +29,6 @@ __all__ = [
     "WorkflowStageResult",
     "AgentWorkflowResult",
     "run_agent_workflow",
+    "TopicFailureDiagnostic",
+    "sanitize_failure_reason",
 ]

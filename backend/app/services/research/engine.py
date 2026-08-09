@@ -54,14 +54,13 @@ def research_topic(
             research_id=res_id,
             agent_id=topic.agent_id,
             topic_id=topic.topic_id,
-            status="pending",
+            status="in_progress",
             confidence=0.0,
         )
     else:
         research_data = existing_res
-
-    # Step 2: Mark research as in_progress
-    research_repo.update_research_status(research_data.research_id, "in_progress")
+        if research_data.status != "in_progress":
+            research_repo.update_research_status(research_data.research_id, "in_progress")
 
     # Step 3: Collect target source URLs
     target_urls: List[str] = []

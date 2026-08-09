@@ -1,9 +1,20 @@
 import secrets
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, field_validator
 
+from app.api.persona_schemas import (
+    FeedConfigResponse,
+    FeedConfigUpdateRequest,
+    PersonaResponse,
+    PersonaUpdateRequest,
+)
+from app.api.validators import (
+    validate_identifier,
+    validate_pagination,
+    validate_status_filter,
+)
 from app.api.workflow_schemas import (
     WorkflowInspectionResponse,
     WorkflowListResponse,
@@ -13,10 +24,20 @@ from app.api.workflow_schemas import (
     WorkflowStageStats,
     WorkflowSummaryResponse,
 )
+from app.core.rate_limiter import (
+    rate_limit_feed_config_update,
+    rate_limit_persona_update,
+    rate_limit_workflow_run,
+)
 from app.repositories import (
+    AgentPersonaData,
     BaseAgentRepository,
+    BasePersonaRepository,
+    BasePostRepository,
     BaseWorkflowRepository,
     get_agent_repository,
+    get_persona_repository,
+    get_post_repository,
     get_workflow_repository,
 )
 from app.repositories.workflow_repository import (
@@ -30,8 +51,8 @@ router = APIRouter(prefix="/agent", tags=["Agent"])
 
 
 class PersonaSchema(BaseModel):
-    name: str = Field(..., description="Persona name")
-    domain: str = Field(..., description="Persona domain focus")
+    name: str = Field(..., max_length=100, description="Persona name")
+    domain: str = Field(..., max_length=100, description="Persona domain focus")
 
     @field_validator("name", "domain", mode="before")
     @classmethod
@@ -41,6 +62,8 @@ class PersonaSchema(BaseModel):
         stripped = value.strip()
         if not stripped:
             raise ValueError("Field cannot be empty or whitespace only")
+        if len(stripped) > 100:
+            raise ValueError("Field length cannot exceed 100 characters")
         return stripped
 
 
@@ -87,15 +110,41 @@ def init_agent(
 
 
 @router.get("/feed", response_model=FeedResponse)
-def get_feed(agentId: str = Query(..., description="Agent ID received during initialization")):
+def get_feed(
+    agentId: str = Query(..., description="Agent ID received during initialization"),
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository),
+    post_repo: BasePostRepository = Depends(get_post_repository),
+):
     """
     Retrieve published posts for the given agentId.
     Polled repeatedly by the evaluator over ~48 hours.
+    Returns HTTP 404 if agent is not found.
     """
+    agentId = validate_identifier(agentId, "agentId")
+    agent = agent_repo.get_agent(agentId)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID '{agentId}' not found."
+        )
+
+    posts_data = post_repo.list_posts_by_agent(agentId)
+    feed_items = [
+        FeedItem(
+            id=p.post_id,
+            title=f"Post for topic {p.topic_id}" if p.topic_id else "Published Post",
+            content=p.text,
+            publishedAt=p.created_at or datetime.now(timezone.utc).isoformat(),
+            sources=[str(s) for s in (p.sources or [])],
+            rationale=p.rationale,
+        )
+        for p in posts_data
+    ]
+
     now_utc = datetime.now(timezone.utc).isoformat()
     return FeedResponse(
         agentId=agentId,
-        posts=[],
+        posts=feed_items,
         status="ok",
         timestamp=now_utc,
     )
@@ -104,14 +153,18 @@ def get_feed(agentId: str = Query(..., description="Agent ID received during ini
 @router.post("/{agent_id}/workflow/run", response_model=WorkflowRunResponse, status_code=status.HTTP_200_OK)
 def run_workflow_endpoint(
     agent_id: str,
+    request: Request,
     payload: Optional[WorkflowRunRequest] = None,
     agent_repo: BaseAgentRepository = Depends(get_agent_repository),
     workflow_repo: BaseWorkflowRepository = Depends(get_workflow_repository),
 ):
     """
     Execute the 9-stage autonomous workflow for the specified agent.
-    Validates agent existence, runs orchestration, and returns structured workflow result.
+    Validates agent existence, enforces process-local rate limiting, runs orchestration, and returns structured workflow result.
     """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    rate_limit_workflow_run(agent_id, request)
+
     agent = agent_repo.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -147,6 +200,8 @@ def run_workflow_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(val_err)
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -184,6 +239,7 @@ def run_workflow_endpoint(
         traceability=wf_result.traceability,
         policy=wf_result.policy,
         governance=wf_result.governance,
+        diagnostics=getattr(wf_result, "diagnostics", []) or wf_result.traceability.get("diagnostics", []),
     )
 
 
@@ -198,6 +254,9 @@ def get_workflow_status_endpoint(
     Retrieve details for a specific workflow execution run by ID.
     Returns HTTP 404 if agent or workflow does not exist, or if workflow belongs to another agent.
     """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    workflow_id = validate_identifier(workflow_id, "workflow_id")
+
     agent = agent_repo.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -243,6 +302,7 @@ def get_workflow_status_endpoint(
         traceability=wf_result.traceability,
         policy=wf_result.policy,
         governance=wf_result.governance,
+        diagnostics=getattr(wf_result, "diagnostics", []) or wf_result.traceability.get("diagnostics", []),
     )
 
 
@@ -258,6 +318,9 @@ def inspect_workflow_endpoint(
     Includes stage statistics, execution duration, entity counts, halted stage, rationale, and concise traceability summary.
     Returns HTTP 404 if agent or workflow is not found or if workflow belongs to another agent.
     """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    workflow_id = validate_identifier(workflow_id, "workflow_id")
+
     agent = agent_repo.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -303,6 +366,7 @@ def inspect_workflow_endpoint(
         traceability_summary=trace_summary,
         policy=wf.policy,
         governance=wf.governance,
+        diagnostics=getattr(wf, "diagnostics", []) or wf.traceability.get("diagnostics", []),
     )
 
 
@@ -320,6 +384,10 @@ def list_workflows_endpoint(
     Retrieve a paginated list of historical workflow execution summaries for an agent with optional status/success filters.
     Returns HTTP 404 if agent is not found.
     """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    status_filter = validate_status_filter(status_filter)
+    validate_pagination(limit, offset)
+
     agent = agent_repo.get_agent(agent_id)
     if not agent:
         raise HTTPException(
@@ -358,6 +426,7 @@ def list_workflows_endpoint(
             publication_ids_count=len(wf.publication_ids or []),
             policy=wf.policy,
             governance=wf.governance,
+            diagnostics=getattr(wf, "diagnostics", []) or wf.traceability.get("diagnostics", []),
         )
         for wf in workflows
     ]
@@ -369,3 +438,153 @@ def list_workflows_endpoint(
         offset=offset,
     )
 
+
+@router.get("/{agent_id}/persona", response_model=PersonaResponse, status_code=status.HTTP_200_OK)
+def get_persona_endpoint(
+    agent_id: str,
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository),
+    persona_repo: BasePersonaRepository = Depends(get_persona_repository),
+):
+    """
+    Retrieve persona configuration for a specific agent.
+    Returns HTTP 404 if agent is not found.
+    """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    agent = agent_repo.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID '{agent_id}' not found."
+        )
+
+    persona = persona_repo.get_persona(agent_id)
+    if not persona:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Persona configuration for agent '{agent_id}' not found."
+        )
+
+    return PersonaResponse(**persona.to_dict())
+
+
+@router.put("/{agent_id}/persona", response_model=PersonaResponse, status_code=status.HTTP_200_OK)
+def update_persona_endpoint(
+    agent_id: str,
+    request: Request,
+    payload: PersonaUpdateRequest,
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository),
+    persona_repo: BasePersonaRepository = Depends(get_persona_repository),
+):
+    """
+    Create or update custom persona configuration for an agent.
+    Enforces process-local rate limiting, validates input parameters, and returns stored persona configuration.
+    """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    rate_limit_persona_update(agent_id, request)
+
+    agent = agent_repo.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID '{agent_id}' not found."
+        )
+
+    existing = persona_repo.get_persona(agent_id)
+    created_at = existing.created_at if existing else None
+
+    persona_data = AgentPersonaData(
+        agent_id=agent_id,
+        persona_name=payload.persona_name,
+        primary_domain=payload.primary_domain,
+        persona_description=payload.persona_description,
+        secondary_domains=payload.secondary_domains,
+        preferred_categories=payload.preferred_categories,
+        excluded_categories=payload.excluded_categories,
+        preferred_keywords=payload.preferred_keywords,
+        excluded_keywords=payload.excluded_keywords,
+        audience_description=payload.audience_description,
+        style_tone=payload.style_tone,
+        min_relevance_threshold=payload.min_relevance_threshold,
+        created_at=created_at,
+    )
+
+    saved = persona_repo.save_persona(persona_data)
+    return PersonaResponse(**saved.to_dict())
+
+
+@router.get("/{agent_id}/feed/config", response_model=FeedConfigResponse, status_code=status.HTTP_200_OK)
+def get_feed_config_endpoint(
+    agent_id: str,
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository),
+    persona_repo: BasePersonaRepository = Depends(get_persona_repository),
+):
+    """
+    Retrieve feed generation configuration for an agent.
+    Returns HTTP 404 if agent is not found.
+    """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    agent = agent_repo.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID '{agent_id}' not found."
+        )
+
+    persona = persona_repo.get_persona(agent_id)
+    return FeedConfigResponse(
+        agent_id=agent_id,
+        max_topics=5,
+        min_relevance_score=persona.min_relevance_threshold if persona else 0.5,
+        allowed_categories=persona.preferred_categories if persona else [],
+        excluded_categories=persona.excluded_categories if persona else [],
+        preferred_keywords=persona.preferred_keywords if persona else [],
+        excluded_keywords=persona.excluded_keywords if persona else [],
+    )
+
+
+@router.put("/{agent_id}/feed/config", response_model=FeedConfigResponse, status_code=status.HTTP_200_OK)
+def update_feed_config_endpoint(
+    agent_id: str,
+    request: Request,
+    payload: FeedConfigUpdateRequest,
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository),
+    persona_repo: BasePersonaRepository = Depends(get_persona_repository),
+):
+    """
+    Update feed configuration rules for an agent.
+    Enforces process-local rate limiting and returns stored feed configuration response.
+    """
+    agent_id = validate_identifier(agent_id, "agent_id")
+    rate_limit_feed_config_update(agent_id, request)
+
+    agent = agent_repo.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID '{agent_id}' not found."
+        )
+
+    persona = persona_repo.get_persona(agent_id)
+    if not persona:
+        persona = AgentPersonaData(
+            agent_id=agent_id,
+            persona_name=agent.name,
+            primary_domain=agent.domain,
+        )
+
+    persona.preferred_categories = payload.allowed_categories
+    persona.excluded_categories = payload.excluded_categories
+    persona.preferred_keywords = payload.preferred_keywords
+    persona.excluded_keywords = payload.excluded_keywords
+    persona.min_relevance_threshold = payload.min_relevance_score
+
+    saved = persona_repo.save_persona(persona)
+    return FeedConfigResponse(
+        agent_id=agent_id,
+        max_topics=payload.max_topics,
+        min_relevance_score=saved.min_relevance_threshold,
+        allowed_categories=saved.preferred_categories,
+        excluded_categories=saved.excluded_categories,
+        preferred_keywords=saved.preferred_keywords,
+        excluded_keywords=saved.excluded_keywords,
+    )

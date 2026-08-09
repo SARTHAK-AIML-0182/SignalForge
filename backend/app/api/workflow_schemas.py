@@ -63,6 +63,7 @@ class WorkflowRunResponse(BaseModel):
     traceability: Dict[str, Any] = Field(default_factory=dict, description="9-stage end-to-end traceability mapping")
     policy: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow policy used for execution")
     governance: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow governance decision")
+    diagnostics: List[Dict[str, Any]] = Field(default_factory=list, description="Sanitized per-topic failure diagnostics")
 
 
 class WorkflowSummaryResponse(BaseModel):
@@ -82,6 +83,7 @@ class WorkflowSummaryResponse(BaseModel):
     publication_ids_count: int = Field(0, description="Count of publications produced (backwards-compatible alias)")
     policy: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow policy used for execution")
     governance: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow governance decision")
+    diagnostics: List[Dict[str, Any]] = Field(default_factory=list, description="Sanitized per-topic failure diagnostics")
 
 
 class WorkflowListResponse(BaseModel):
@@ -118,3 +120,4 @@ class WorkflowInspectionResponse(BaseModel):
     traceability_summary: Dict[str, Any] = Field(default_factory=dict, description="Concise traceability summary")
     policy: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow policy used for execution")
     governance: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow governance decision")
+    diagnostics: List[Dict[str, Any]] = Field(default_factory=list, description="Sanitized per-topic failure diagnostics")

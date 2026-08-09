@@ -150,14 +150,8 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                     (result.workflow_id,),
                 )
 
-                for idx, stage in enumerate(result.stages):
-                    conn.execute(
-                        """
-                        INSERT INTO workflow_stages (
-                            workflow_id, stage_name, status, started_at, completed_at,
-                            is_successful, rationale, entity_ids, metadata, stage_order
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
+                if result.stages:
+                    stage_tuples = [
                         (
                             result.workflow_id,
                             stage.stage_name,
@@ -169,7 +163,17 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                             json.dumps(stage.entity_ids or {}),
                             json.dumps(stage.metadata or {}),
                             idx,
-                        ),
+                        )
+                        for idx, stage in enumerate(result.stages)
+                    ]
+                    conn.executemany(
+                        """
+                        INSERT INTO workflow_stages (
+                            workflow_id, stage_name, status, started_at, completed_at,
+                            is_successful, rationale, entity_ids, metadata, stage_order
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        stage_tuples,
                     )
         finally:
             conn.close()
@@ -223,6 +227,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
             raw_gov = row["governance"] if "governance" in row.keys() else "{}"
             parsed_gov = json.loads(raw_gov) if raw_gov and raw_gov != "{}" else None
 
+            parsed_traceability = json.loads(row["traceability"] or "{}")
             return AgentWorkflowResult(
                 workflow_id=row["workflow_id"],
                 agent_id=row["agent_id"],
@@ -237,9 +242,10 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                 is_successful=bool(row["is_successful"]),
                 halted_at_stage=row["halted_at_stage"],
                 rationale=row["rationale"] or "",
-                traceability=json.loads(row["traceability"] or "{}"),
+                traceability=parsed_traceability,
                 policy=parsed_policy,
                 governance=parsed_gov,
+                diagnostics=parsed_traceability.get("diagnostics", []),
             )
         finally:
             conn.close()

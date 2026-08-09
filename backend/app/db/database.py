@@ -163,5 +163,35 @@ def init_db(db_path: Optional[Union[str, Path]] = None) -> None:
                 FOREIGN KEY (workflow_id) REFERENCES workflows (workflow_id) ON DELETE CASCADE
             );
             """)
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS agent_persona (
+                agent_id TEXT PRIMARY KEY,
+                persona_name TEXT NOT NULL,
+                persona_description TEXT,
+                primary_domain TEXT NOT NULL,
+                secondary_domains TEXT NOT NULL DEFAULT '[]',
+                preferred_categories TEXT NOT NULL DEFAULT '[]',
+                excluded_categories TEXT NOT NULL DEFAULT '[]',
+                preferred_keywords TEXT NOT NULL DEFAULT '[]',
+                excluded_keywords TEXT NOT NULL DEFAULT '[]',
+                audience_description TEXT,
+                style_tone TEXT,
+                min_relevance_threshold REAL DEFAULT 0.5,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (agent_id) REFERENCES agents (agent_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Non-destructive performance indexes for foreign key lookups and pagination
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_topics_agent_id ON topics (agent_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_agent_id ON posts (agent_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_research_agent_id ON research (agent_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_research_topic_id ON research (topic_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_evidence_research_id ON evidence (research_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_workflows_agent_id_started ON workflows (agent_id, started_at DESC);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_workflow_stages_wf_order ON workflow_stages (workflow_id, stage_order ASC);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_persona_agent_id ON agent_persona (agent_id);")
     finally:
         conn.close()

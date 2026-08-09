@@ -55,6 +55,11 @@ class BaseTopicRepository(ABC):
         pass
 
     @abstractmethod
+    def get_topics_by_ids(self, topic_ids: List[str]) -> List[TopicData]:
+        """Retrieve multiple topics by IDs in a single batch query."""
+        pass
+
+    @abstractmethod
     def list_topics_by_agent(self, agent_id: str) -> List[TopicData]:
         """List all topics for an agent."""
         pass
@@ -157,6 +162,39 @@ class SQLiteTopicRepository(BaseTopicRepository):
                 status=row["status"],
                 rationale=row["rationale"] if "rationale" in row.keys() else None,
             )
+        finally:
+            conn.close()
+
+    def get_topics_by_ids(self, topic_ids: List[str]) -> List[TopicData]:
+        if not topic_ids:
+            return []
+        placeholders = ",".join("?" for _ in topic_ids)
+        conn = get_connection(self.db_path)
+        try:
+            cursor = conn.execute(
+                f"""
+                SELECT topic_id, agent_id, title, description, source_url, source_name, discovered_at, editorial_score, status, rationale
+                FROM topics WHERE topic_id IN ({placeholders})
+                """,
+                tuple(topic_ids)
+            )
+            rows = cursor.fetchall()
+            topic_map = {
+                row["topic_id"]: TopicData(
+                    topic_id=row["topic_id"],
+                    agent_id=row["agent_id"],
+                    title=row["title"],
+                    description=row["description"],
+                    source_url=row["source_url"],
+                    source_name=row["source_name"],
+                    discovered_at=row["discovered_at"],
+                    editorial_score=row["editorial_score"],
+                    status=row["status"],
+                    rationale=row["rationale"] if "rationale" in row.keys() else None,
+                )
+                for row in rows
+            }
+            return [topic_map[tid] for tid in topic_ids if tid in topic_map]
         finally:
             conn.close()
 

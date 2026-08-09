@@ -35,6 +35,10 @@ from app.services.research import (
     synthesize_research,
     validate_research,
 )
+from app.services.workflow.diagnostics import (
+    TopicFailureDiagnostic,
+    sanitize_failure_reason,
+)
 from app.services.workflow.governance import (
     WorkflowGovernanceDecision,
     evaluate_workflow_governance,
@@ -59,6 +63,8 @@ def run_agent_workflow(
     research_repo: Optional[BaseResearchRepository] = None,
     evidence_repo: Optional[BaseEvidenceRepository] = None,
     workflow_repo: Optional[Any] = None,
+    post_repo: Optional[Any] = None,
+    persona_repo: Optional[Any] = None,
     http_client: Optional[httpx.Client] = None,
     publishing_adapter: Optional[BasePublishingAdapter] = None,
     feeds: Optional[List[Any]] = None,
@@ -101,6 +107,18 @@ def run_agent_workflow(
             get_workflow_repository,
         )
         workflow_repo = SQLiteWorkflowRepository(db_path) if db_path else get_workflow_repository()
+    if post_repo is None:
+        from app.repositories.post_repository import (
+            SQLitePostRepository,
+            get_post_repository,
+        )
+        post_repo = SQLitePostRepository(db_path) if db_path else get_post_repository()
+    if persona_repo is None:
+        from app.repositories.persona_repository import (
+            SQLitePersonaRepository,
+            get_persona_repository,
+        )
+        persona_repo = SQLitePersonaRepository(db_path) if db_path else get_persona_repository()
 
     def _persist_result(res: AgentWorkflowResult) -> AgentWorkflowResult:
         try:
@@ -126,6 +144,7 @@ def run_agent_workflow(
                     traceability=res.traceability,
                     policy=policy_dict,
                     governance=gov_dict,
+                    diagnostics=res.diagnostics,
                 )
             return res
 
@@ -185,6 +204,35 @@ def run_agent_workflow(
                     metadata={"discovered_count": len(discovered_topics)},
                 )
             )
+
+            # Persona Alignment Processing
+            s_pa_start = datetime.now(timezone.utc).isoformat()
+            persona = persona_repo.get_persona(agent_id) if persona_repo else None
+            aligned_topics = []
+            alignment_decisions = []
+
+            if persona:
+                from app.services.persona_alignment import evaluate_topic_alignment
+                for t in discovered_topics:
+                    dec = evaluate_topic_alignment(t, persona)
+                    alignment_decisions.append(dec)
+                    if dec.aligned:
+                        aligned_topics.append(t)
+                s_pa_end = datetime.now(timezone.utc).isoformat()
+
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name="persona_alignment",
+                        status=WorkflowStageStatus.SUCCEEDED,
+                        started_at=s_pa_start,
+                        completed_at=s_pa_end,
+                        is_successful=True,
+                        rationale=f"Evaluated persona alignment for {len(discovered_topics)} topics. {len(aligned_topics)} topics aligned with persona '{persona.persona_name}'.",
+                        entity_ids={"aligned_topic_ids": [t.topic_id for t in aligned_topics]},
+                        metadata={"total_evaluated": len(discovered_topics), "aligned_count": len(aligned_topics)},
+                    )
+                )
+                traceability["persona_alignment"] = [dec.to_dict() for dec in alignment_decisions]
         except Exception as exc:
             s1_end = datetime.now(timezone.utc).isoformat()
             logger.error(f"Topic discovery failed completely: {exc}")
@@ -215,7 +263,7 @@ def run_agent_workflow(
                     is_successful=False,
                     halted_at_stage="topic_discovery",
                     rationale="Workflow halted: Topic discovery failed completely.",
-                    traceability={},
+                    traceability=traceability,
                     policy=policy_dict,
                     governance=gov_dict,
                 )
@@ -281,7 +329,7 @@ def run_agent_workflow(
                     is_successful=False,
                     halted_at_stage="editorial_evaluation",
                     rationale="Workflow halted: Editorial evaluation failed.",
-                    traceability={},
+                    traceability=traceability,
                     policy=policy_dict,
                     governance=gov_dict,
                 )
@@ -327,7 +375,7 @@ def run_agent_workflow(
                     is_successful=True,
                     halted_at_stage=None,
                     rationale="NO CONTENT: Workflow completed cleanly, but zero topics met the editorial selection threshold.",
-                    traceability={},
+                    traceability=traceability,
                     policy=policy_dict,
                     governance=gov_dict,
                 )
@@ -339,9 +387,17 @@ def run_agent_workflow(
         topics_to_process = selected_topic_ids[: config.max_topics]
         successful_publications = 0
         blocked_publications = 0
+        all_diagnostics: List[Dict[str, Any]] = []
+
+        # Batch-load selected topics in a single query to eliminate N+1 fetch calls
+        if hasattr(topic_repo, "get_topics_by_ids"):
+            fetched_topics = topic_repo.get_topics_by_ids(topics_to_process)
+        else:
+            fetched_topics = [t for tid in topics_to_process if (t := topic_repo.get_topic(tid)) is not None]
+        topics_by_id = {t.topic_id: t for t in fetched_topics if t is not None}
 
         for topic_id in topics_to_process:
-            topic_data = topic_repo.get_topic(topic_id)
+            topic_data = topics_by_id.get(topic_id)
             if not topic_data:
                 continue
 
@@ -361,6 +417,7 @@ def run_agent_workflow(
                 s3_end = datetime.now(timezone.utc).isoformat()
 
                 if res_result.status == "failed" or res_result.evidence_count == 0:
+                    fail_msg = f"Research failed or collected zero evidence for topic '{topic_id}'."
                     stages.append(
                         WorkflowStageResult(
                             stage_name=f"research_{topic_id}",
@@ -368,10 +425,18 @@ def run_agent_workflow(
                             started_at=s3_start,
                             completed_at=s3_end,
                             is_successful=False,
-                            rationale=f"Research failed or collected zero evidence for topic '{topic_id}'.",
+                            rationale=fail_msg,
                             entity_ids={"topic_ids": [topic_id]},
                         )
                     )
+                    diag = TopicFailureDiagnostic(
+                        topic_id=topic_id,
+                        title=topic_data.title,
+                        failed_stage=f"research_{topic_id}",
+                        sanitized_reason=sanitize_failure_reason(fail_msg),
+                    )
+                    all_diagnostics.append(diag.to_dict())
+                    topic_trace["failure_diagnostic"] = diag.to_dict()
                     topic_trace["research_status"] = "failed"
                     continue
 
@@ -391,6 +456,7 @@ def run_agent_workflow(
             except Exception as exc:
                 s3_end = datetime.now(timezone.utc).isoformat()
                 logger.error(f"Research failed for topic {topic_id}: {exc}")
+                fail_msg = f"Research raised exception: {type(exc).__name__}"
                 stages.append(
                     WorkflowStageResult(
                         stage_name=f"research_{topic_id}",
@@ -398,10 +464,18 @@ def run_agent_workflow(
                         started_at=s3_start,
                         completed_at=s3_end,
                         is_successful=False,
-                        rationale=f"Research raised exception: {type(exc).__name__}",
+                        rationale=fail_msg,
                         entity_ids={"topic_ids": [topic_id]},
                     )
                 )
+                diag = TopicFailureDiagnostic(
+                    topic_id=topic_id,
+                    title=topic_data.title,
+                    failed_stage=f"research_{topic_id}",
+                    sanitized_reason=sanitize_failure_reason(exc),
+                )
+                all_diagnostics.append(diag.to_dict())
+                topic_trace["failure_diagnostic"] = diag.to_dict()
                 topic_trace["research_status"] = "exception"
                 continue
 
@@ -459,6 +533,15 @@ def run_agent_workflow(
                         entity_ids={"research_ids": [res_result.research_id]},
                     )
                 )
+                diag = TopicFailureDiagnostic(
+                    topic_id=topic_id,
+                    title=topic_data.title,
+                    failed_stage=f"research_validation_{topic_id}",
+                    sanitized_reason=sanitize_failure_reason(exc),
+                    research_id=res_result.research_id,
+                )
+                all_diagnostics.append(diag.to_dict())
+                topic_trace["failure_diagnostic"] = diag.to_dict()
                 continue
 
             # STAGE 5 — Research Synthesis
@@ -501,6 +584,15 @@ def run_agent_workflow(
                         entity_ids={"research_ids": [res_result.research_id]},
                     )
                 )
+                diag = TopicFailureDiagnostic(
+                    topic_id=topic_id,
+                    title=topic_data.title,
+                    failed_stage=f"research_synthesis_{topic_id}",
+                    sanitized_reason=sanitize_failure_reason(exc),
+                    research_id=res_result.research_id,
+                )
+                all_diagnostics.append(diag.to_dict())
+                topic_trace["failure_diagnostic"] = diag.to_dict()
                 continue
 
             # STAGE 6 — Content Brief
@@ -544,6 +636,15 @@ def run_agent_workflow(
                         entity_ids={"research_ids": [res_result.research_id]},
                     )
                 )
+                diag = TopicFailureDiagnostic(
+                    topic_id=topic_id,
+                    title=topic_data.title,
+                    failed_stage=f"content_brief_{topic_id}",
+                    sanitized_reason=sanitize_failure_reason(exc),
+                    research_id=res_result.research_id,
+                )
+                all_diagnostics.append(diag.to_dict())
+                topic_trace["failure_diagnostic"] = diag.to_dict()
                 continue
 
             # STAGE 7 — Draft Generation
@@ -581,6 +682,15 @@ def run_agent_workflow(
                         entity_ids={"research_ids": [res_result.research_id]},
                     )
                 )
+                diag = TopicFailureDiagnostic(
+                    topic_id=topic_id,
+                    title=topic_data.title,
+                    failed_stage=f"draft_generation_{topic_id}",
+                    sanitized_reason=sanitize_failure_reason(exc),
+                    research_id=res_result.research_id,
+                )
+                all_diagnostics.append(diag.to_dict())
+                topic_trace["failure_diagnostic"] = diag.to_dict()
                 continue
 
             # STAGE 8 — Publishability Check
@@ -640,6 +750,20 @@ def run_agent_workflow(
 
                 if pub_result.is_successful:
                     successful_publications += 1
+                    if post_repo is not None:
+                        try:
+                            post_repo.create_post(
+                                post_id=pub_result.publication_id,
+                                agent_id=agent_id,
+                                text=getattr(draft, "full_text", getattr(draft, "content", "")),
+                                topic_id=topic_id,
+                                rationale=pub_result.rationale,
+                                sources=getattr(draft, "sources", []),
+                                editorial_score=getattr(draft, "editorial_score", 0.0),
+                            )
+                        except Exception as post_err:
+                            logger.warning(f"Failed to persist post {pub_result.publication_id} into PostRepository: {post_err}")
+
                     stages.append(
                         WorkflowStageResult(
                             stage_name=f"dry_run_publication_{topic_id}",
@@ -680,6 +804,19 @@ def run_agent_workflow(
                         entity_ids={"draft_ids": [draft.draft_id]},
                     )
                 )
+                diag = TopicFailureDiagnostic(
+                    topic_id=topic_id,
+                    title=topic_data.title,
+                    failed_stage=f"dry_run_publication_{topic_id}",
+                    sanitized_reason=sanitize_failure_reason(exc),
+                    research_id=res_result.research_id,
+                    draft_id=draft.draft_id,
+                    is_publishable=draft.is_publishable,
+                )
+                all_diagnostics.append(diag.to_dict())
+                topic_trace["failure_diagnostic"] = diag.to_dict()
+
+        traceability["diagnostics"] = all_diagnostics
 
         # Determine overall workflow status
         total_selected = len(topics_to_process)
@@ -730,6 +867,7 @@ def run_agent_workflow(
                 traceability=traceability,
                 policy=policy_dict,
                 governance=gov_dict,
+                diagnostics=all_diagnostics,
             )
         )
     except Exception as top_exc:
@@ -753,6 +891,6 @@ def run_agent_workflow(
             traceability=traceability,
             policy=policy_dict,
             governance=gov_dict,
+            diagnostics=all_diagnostics,
         )
-        _persist_result(failed_result)
-        return failed_result
+        return _persist_result(failed_result)

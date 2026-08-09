@@ -5751,4 +5751,1000 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 
 
+## Session 021 — Backend Architecture & Integration Audit
+
+### Prompt
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+SignalForge has now completed Sessions 001–020.
+
+The backend currently contains:
+
+- FastAPI backend
+- Agent initialization
+- Agent feed
+- SQLite persistence
+- Agent repository
+- Topic repository
+- Post repository
+- Live RSS/Atom topic discovery
+- Feed parsing and normalization
+- Topic deduplication
+- Editorial judgment engine
+- Multi-factor editorial scoring
+- Selected/rejected topic persistence
+- Research repository
+- Evidence repository
+- Autonomous research and evidence collection
+- Research validation
+- Research synthesis and intelligence
+- Deterministic content brief generation
+- Deterministic writer
+- Publishing abstraction
+- Dry-run publishing adapter
+- 9-stage workflow orchestrator
+- Workflow execution API
+- Persistent workflow records
+- Persistent workflow stages
+- Workflow history
+- Workflow inspection/observability
+- Failure recovery
+- Workflow policy validation
+- Workflow governance
+- End-to-end traceability
+- Sanitized API error handling
+- 253 passing automated tests
+
+The current branch is `backend`.
+
+Session 020 has been committed and pushed successfully.
+
+The objective now is to finish the backend within approximately six focused development sessions.
+
+This session is therefore an ARCHITECTURE AND INTEGRATION AUDIT, not a feature-expansion session.
+
+--------------------------------------------------
+1. PRIMARY OBJECTIVE
+--------------------------------------------------
+
+Perform a comprehensive audit of the existing backend and determine what is genuinely required to reach a production-ready backend MVP.
+
+Do not invent unnecessary features.
+
+Do not redesign working architecture.
+
+Do not create speculative abstractions.
+
+Do not modify the frontend.
+
+Do not implement scheduling.
+
+Do not implement background workers.
+
+Do not implement Celery/RQ/Redis.
+
+Do not introduce LLM calls.
+
+Do not introduce real external social-media publishing.
+
+Do not introduce OAuth.
+
+Do not rewrite the existing workflow stages.
+
+The purpose of this session is:
+
+AUDIT -> IDENTIFY GAPS -> FIX CRITICAL INTEGRATION ISSUES -> TEST -> VERIFY.
+
+--------------------------------------------------
+2. REQUIRED AUDIT AREAS
+--------------------------------------------------
+
+Inspect the complete backend implementation.
+
+Audit at minimum:
+
+A. Application startup and dependency wiring
+
+- FastAPI application creation
+- router registration
+- repository dependency injection
+- database initialization
+- SQLite connection lifecycle
+- startup/shutdown behavior
+- import structure
+- package exports
+- configuration handling
+
+B. API architecture
+
+Inspect all existing API endpoints.
+
+Verify:
+
+- route consistency
+- request validation
+- response schemas
+- HTTP status codes
+- 404 behavior
+- 422 behavior
+- 500 behavior
+- sanitized errors
+- dependency injection
+- absence of SQL inside route handlers
+- absence of business logic duplication
+- JSON serialization
+
+C. Database architecture
+
+Audit:
+
+- schema initialization
+- migrations
+- foreign keys
+- indexes
+- constraints
+- JSON persistence
+- backward compatibility
+- initialization against an existing database
+- repository re-instantiation
+- process restart behavior
+- transaction boundaries
+- connection handling
+
+Do not introduce a new database.
+
+D. Repository architecture
+
+Audit:
+
+- AgentRepository
+- TopicRepository
+- ResearchRepository
+- EvidenceRepository
+- WorkflowRepository
+- PostRepository
+
+Check for:
+
+- consistent interfaces
+- consistent error behavior
+- resource handling
+- duplicated persistence logic
+- unsafe SQL construction
+- missing constraints
+- missing indexes that are clearly necessary
+- accidental coupling
+
+E. Workflow integration
+
+Trace the complete execution path:
+
+API
+-> policy
+-> governance
+-> orchestrator
+-> discovery
+-> editorial
+-> research
+-> validation
+-> synthesis
+-> brief
+-> writer
+-> publishability
+-> publishing
+-> persistence
+
+Verify that each layer has one clear responsibility.
+
+Do not redesign functioning components.
+
+F. Workflow state integrity
+
+Verify:
+
+- RUNNING persistence
+- SUCCESS
+- PARTIAL_SUCCESS
+- NO_CONTENT
+- FAILED
+- stage persistence
+- halted stage
+- stage ordering
+- traceability
+- policy
+- governance
+- failure recovery
+
+Check for any possibility of returning a result inconsistent with persisted state.
+
+G. Security boundary
+
+Audit for:
+
+- secrets in request models
+- secrets in logs
+- credentials persisted accidentally
+- stack trace exposure
+- database path exposure
+- unsafe filesystem access
+- unsafe SQL interpolation
+- arbitrary external adapter injection
+- live publishing bypasses
+
+Do not implement a full authentication system unless the existing architecture clearly requires one for correctness.
+
+Instead identify the minimum production-safe boundary.
+
+H. Configuration
+
+Audit:
+
+- hard-coded configuration
+- environment-dependent behavior
+- database path configuration
+- publishing configuration
+- unsafe defaults
+- deterministic defaults
+
+Do not introduce a complex configuration framework unless required.
+
+I. Observability
+
+Audit existing:
+
+- workflow inspection
+- stage statistics
+- duration
+- rationale
+- traceability
+- failure information
+
+Determine whether the current observability is sufficient for the backend MVP.
+
+Do not add dashboards.
+
+J. Testing
+
+Inspect the existing test suite.
+
+Identify:
+
+- missing high-value integration tests
+- duplicated tests
+- tests that don't reflect actual architecture
+- dangerous reliance on shared state
+- tests that use production database state
+- missing restart tests
+- missing full API workflow tests
+
+Do not weaken existing tests.
+
+--------------------------------------------------
+3. CODE REVIEW
+--------------------------------------------------
+
+Perform a focused code review of the backend.
+
+Look specifically for:
+
+- circular dependencies
+- unused imports
+- dead code
+- accidental duplicated logic
+- inconsistent naming
+- incorrect type annotations
+- unsafe exception handling
+- mutable global state
+- hidden side effects
+- repository/resource leaks
+- schema compatibility problems
+- incorrect status transitions
+- API/repository coupling
+
+Fix only issues that are:
+
+1. clearly incorrect,
+2. security-sensitive,
+3. reliability-sensitive,
+4. required for integration correctness,
+5. or clearly blocking production MVP readiness.
+
+Do not refactor code merely for style.
+
+--------------------------------------------------
+4. DATABASE COMPATIBILITY
+--------------------------------------------------
+
+Use an existing SQLite database if available.
+
+Verify that:
+
+- existing records survive initialization
+- all migrations are non-destructive
+- workflow records remain readable
+- legacy workflow records remain compatible
+- repositories can be recreated successfully
+
+Do not delete or recreate the database.
+
+--------------------------------------------------
+5. END-TO-END INTEGRATION TEST
+--------------------------------------------------
+
+Create a deterministic integration test if the existing suite does not already cover this sufficiently.
+
+The test should verify:
+
+Agent
+-> Workflow API
+-> Policy
+-> Governance
+-> Discovery
+-> Editorial
+-> Research
+-> Validation
+-> Synthesis
+-> Brief
+-> Writer
+-> Publishability
+-> Dry-run Publishing
+-> SQLite persistence
+-> Workflow retrieval
+-> Workflow inspection
+
+No:
+
+- internet
+- LLM
+- OAuth
+- real publishing
+- background workers
+
+Use isolated temporary SQLite databases for automated tests.
+
+--------------------------------------------------
+6. PERFORMANCE SANITY
+--------------------------------------------------
+
+Do a basic sanity review for obvious performance problems.
+
+Do not prematurely optimize.
+
+Check for:
+
+- accidental O(N²) behavior in workflow processing
+- repeated database initialization
+- unnecessary repeated serialization
+- unbounded queries
+- missing bounded pagination
+- excessive database writes
+
+Only fix obvious problems that are clearly relevant.
+
+--------------------------------------------------
+7. DOCUMENTATION
+--------------------------------------------------
+
+Update `prompts.md` with:
+
+- Session 021 prompt
+- audit findings
+- changes made
+- tests
+- verification
+- remaining backend work
+
+Do not claim the backend is finished unless the audit actually supports that conclusion.
+
+Also create/update a concise backend completion roadmap if one does not already exist.
+
+The roadmap must distinguish:
+
+DONE
+CRITICAL REMAINING
+OPTIONAL/FUTURE
+
+This roadmap will be used to guide Sessions 022–026.
+
+--------------------------------------------------
+8. TESTING REQUIREMENT
+--------------------------------------------------
+
+Run:
+
+python -m pytest
+
+The COMPLETE test suite must pass.
+
+Do not accept partial success.
+
+Do not weaken tests.
+
+If failures are found, fix the underlying issue.
+
+--------------------------------------------------
+9. CONTROLLED LIVE VERIFICATION
+--------------------------------------------------
+
+After tests pass, run a controlled local verification against the existing SQLite database if safe.
+
+Use the existing NOVA agent if available.
+
+Verify:
+
+- application initializes
+- existing data remains accessible
+- workflow execution works
+- governance remains enforced
+- workflow persists
+- workflow can be retrieved
+- inspection works
+- dry-run publishing remains local
+- no LLM calls occur
+- no external publishing occurs
+
+Do not make destructive database changes.
+
+--------------------------------------------------
+10. FINAL REPORT
+--------------------------------------------------
+
+Report:
+
+1. Architecture audit findings.
+2. Critical issues discovered.
+3. Issues fixed.
+4. Issues intentionally left unchanged.
+5. Files created.
+6. Files modified.
+7. Database changes, if any.
+8. API changes, if any.
+9. Integration changes.
+10. Security findings.
+11. Performance findings.
+12. Complete pytest result.
+13. Controlled live verification result.
+14. Updated Sessions 022–026 roadmap.
+15. Assumptions and limitations.
+16. Code-review verification.
+17. Confirmation of zero LLM usage.
+18. Confirmation of zero real external publishing.
+19. Confirmation of zero scheduling/background workers.
+
+Do NOT commit or push changes.
+
+Leave the final Git state uncommitted for manual review.
+
+The goal is to determine exactly what remains and make the backend structurally ready for the final five sessions.
+
+**Result:**
+
+Performed a comprehensive architecture and integration audit of the SignalForge backend. Added non-destructive SQLite performance indexes (`idx_topics_agent_id`, `idx_posts_agent_id`, `idx_research_agent_id`, `idx_evidence_research_id`, `idx_workflows_agent_id_started`, `idx_workflow_stages_wf_order`) in `app/db/database.py`. Resolved key data flow integration gap between workflow execution, dry-run publication, `PostRepository`, and `GET /api/agent/feed` API endpoint in `orchestrator.py` and `agent.py`. Established the Backend Completion Roadmap (`backend_roadmap.md`) mapping completion status for Sessions 001–021 (DONE), Sessions 022–026 (CRITICAL REMAINING), and post-MVP enhancements (OPTIONAL/FUTURE). Added 5 automated integration audit tests in `tests/test_backend_integration_audit.py`.
+
+**Human Verification:**
+
+- Verified `GET /api/agent/feed?agentId={agentId}` validates agent existence (returning HTTP 404 if missing) and returns published posts from `SQLitePostRepository`.
+- Verified `run_agent_workflow()` resolves `PostRepository` and persists post entities upon successful dry-run publication in Stage 9.
+- Verified non-destructive SQLite performance indexes are created on startup.
+- Verified process restart & repository re-instantiation against temporary SQLite database preserves agent, workflow, policy, and governance state.
+- Verified legacy database record compatibility (`policy: None`, `governance: None`).
+- Executed controlled live verification script (`scratch/test_live_backend_audit.py`) against `data/signalforge.db`: verified database index resolution, workflow run, detail/inspection endpoints, and feed API retrieval, confirming zero real external publishing or LLM calls occurred.
+- Verified complete test suite: 258 passed out of 258 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 258 items
+
+tests\test_agent_init.py .....                                           [  1%]
+tests\test_backend_integration_audit.py .....                            [  3%]
+tests\test_content_brief.py ................                             [ 10%]
+tests\test_database.py .....                                             [ 12%]
+tests\test_editorial_engine.py ..........                                [ 15%]
+tests\test_editorial_quality.py ....                                     [ 17%]
+tests\test_publishing.py ..................                              [ 24%]
+tests\test_research_engine.py ............                               [ 29%]
+tests\test_research_repository.py ...............                        [ 34%]
+tests\test_research_synthesis.py ................                        [ 41%]
+tests\test_research_validation.py ..............                         [ 46%]
+tests\test_research_writer.py ....................                       [ 54%]
+tests\test_topic_discovery.py ......                                     [ 56%]
+tests\test_workflow.py ....................                              [ 64%]
+tests\test_workflow_api.py ................                              [ 70%]
+tests\test_workflow_failure_api.py ....                                  [ 72%]
+tests\test_workflow_failure_recovery.py .........                        [ 75%]
+tests\test_workflow_governance.py ............                           [ 80%]
+tests\test_workflow_governance_api.py ....                               [ 81%]
+tests\test_workflow_inspection_api.py ......                             [ 83%]
+tests\test_workflow_observability.py ......                              [ 86%]
+tests\test_workflow_policy.py ...............                            [ 92%]
+tests\test_workflow_policy_api.py .....                                  [ 94%]
+tests\test_workflow_repository.py .......                                [ 96%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 258 passed, 1 warning in 157.50s (0:02:37) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Backend Completion Target**: Final backend MVP readiness targeted for completion at Session 026.
+- **Execution Safeguards**: All publishing remains strictly dry-run; external API adapters and OAuth integrations are excluded from core MVP scope.
+
+**Code Review Verification:**
+
+- Verified non-destructive SQLite performance index creation in `database.py`.
+- Verified `PostRepository` post persistence in Stage 9 of `orchestrator.py`.
+- Verified `GET /feed` route handling and HTTP 404 validation in `agent.py`.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling, retries, or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+Pending
+
+
+### Session 022 — Persona Alignment & Custom Feed Configuration
+
+**Result:**
+
+Implemented a deterministic Persona Alignment & Custom Feed Configuration subsystem. Created `agent_persona` SQLite table and `idx_persona_agent_id` index in `app/db/database.py`. Implemented `AgentPersonaData` model and `SQLitePersonaRepository` in `app/repositories/persona_repository.py` with fallback defaults for legacy agents. Implemented rule-based scoring engine `evaluate_topic_alignment()` in `app/services/persona_alignment.py`. Integrated persona alignment into `orchestrator.py` between Stage 1 (Topic Discovery) and Stage 2 (Editorial Evaluation). Created Pydantic models in `app/api/persona_schemas.py` and API routes (`GET/PUT /api/agent/{agent_id}/persona`, `GET/PUT /api/agent/{agent_id}/feed/config`) in `app/api/agent.py`. Added 12 new automated unit and API integration tests in `tests/test_persona_alignment.py` and `tests/test_persona_api.py`.
+
+**Human Verification:**
+
+- Verified `GET /api/agent/{agent_id}/persona` and `PUT /api/agent/{agent_id}/persona` API endpoints with full Pydantic validation (returning HTTP 404 for missing agents and HTTP 422 for invalid parameters).
+- Verified `GET /api/agent/{agent_id}/feed/config` and `PUT /api/agent/{agent_id}/feed/config` endpoints.
+- Verified `run_agent_workflow()` executes `persona_alignment` stage and records traceability decisions.
+- Verified legacy agents dynamically receive safe default persona configuration based on `persona_name` and `persona_domain`.
+- Executed controlled live verification script (`scratch/test_live_persona_alignment.py`) against `data/signalforge.db`.
+- Verified complete test suite: 270 passed out of 270 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 270 items
+
+tests\test_agent_init.py .....                                           [  1%]
+tests\test_backend_integration_audit.py .....                            [  3%]
+tests\test_content_brief.py ................                             [  9%]
+tests\test_database.py .....                                             [ 11%]
+tests\test_editorial_engine.py ..........                                [ 15%]
+tests\test_editorial_quality.py ....                                     [ 16%]
+tests\test_persona_alignment.py .......                                  [ 19%]
+tests\test_persona_api.py .....                                          [ 21%]
+tests\test_publishing.py ..................                              [ 27%]
+tests\test_research_engine.py ............                               [ 32%]
+tests\test_research_repository.py ...............                        [ 37%]
+tests\test_research_synthesis.py ................                        [ 43%]
+tests\test_research_validation.py ..............                         [ 48%]
+tests\test_research_writer.py ....................                       [ 56%]
+tests\test_topic_discovery.py ......                                     [ 58%]
+tests\test_workflow.py ....................                              [ 65%]
+tests\test_workflow_api.py ................                              [ 71%]
+tests\test_workflow_failure_api.py ....                                  [ 73%]
+tests\test_workflow_failure_recovery.py .........                        [ 76%]
+tests\test_workflow_governance.py ............                           [ 81%]
+tests\test_workflow_governance_api.py ....                               [ 82%]
+tests\test_workflow_inspection_api.py ......                             [ 84%]
+tests\test_workflow_observability.py ......                              [ 87%]
+tests\test_workflow_policy.py ...............                            [ 92%]
+tests\test_workflow_policy_api.py .....                                  [ 94%]
+tests\test_workflow_repository.py .......                                [ 97%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 270 passed, 1 warning in 98.29s (0:01:38) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Deterministic Rule Matching**: Alignment scoring uses string matching, domain checks, category filters, and keyword bonuses/penalties. No LLMs, embeddings, or ML models are used.
+- **Execution Safeguards**: All publishing remains strictly dry-run simulation.
+
+**Code Review Verification:**
+
+- Verified DDL for `agent_persona` table in `database.py`.
+- Verified `SQLitePersonaRepository` implementation and fallback defaults in `persona_repository.py`.
+- Verified deterministic scoring logic in `persona_alignment.py`.
+- Verified orchestrator stage execution in `orchestrator.py`.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling, retries, or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+Pending
+
+
+
+### Session 023 — Workflow Performance & Batch Pipeline Optimization
+
+**Result:**
+
+Optimized multi-topic workflow execution performance in SignalForge. Added `get_topics_by_ids()` batch query method to `BaseTopicRepository` and `SQLiteTopicRepository` in `app/repositories/topic_repository.py`. Optimized stage persistence in `SQLiteWorkflowRepository.save_workflow()` in `app/repositories/workflow_repository.py` by replacing individual loop execution with SQLite `executemany` bulk stage insertions. Batch-loaded selected topics before the Stage 3 loop in `app/services/workflow/orchestrator.py` to eliminate N+1 single-row fetches. Streamlined research record status initialization in `app/services/research/engine.py` to initialize with `status="in_progress"` directly. Created 4 multi-topic batch performance tests in `tests/test_workflow_performance.py` and a controlled live benchmark in `scratch/test_live_performance_benchmark.py`.
+
+**Human Verification:**
+
+- Verified `get_topics_by_ids()` executes a single `SELECT ... WHERE topic_id IN (?, ...)` query to fetch all requested topics in one roundtrip.
+- Verified `executemany` bulk inserts workflow stage tuples inside a single transaction.
+- Verified deterministic topic ordering, stage order, failure isolation, and traceability preservation.
+- Executed controlled live benchmark (`scratch/test_live_performance_benchmark.py`) against `data/signalforge.db` (3-topic workflow executed in 3.58 seconds).
+- Verified status, history, inspection, feed, and post persistence endpoints.
+- Verified complete test suite: 274 passed out of 274 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 274 items
+
+tests\test_agent_init.py .....                                           [  1%]
+tests\test_backend_integration_audit.py .....                            [  3%]
+tests\test_content_brief.py ................                             [  9%]
+tests\test_database.py .....                                             [ 11%]
+tests\test_editorial_engine.py ..........                                [ 14%]
+tests\test_editorial_quality.py ....                                     [ 16%]
+tests\test_persona_alignment.py .......                                  [ 18%]
+tests\test_persona_api.py .....                                          [ 20%]
+tests\test_publishing.py ..................                              [ 27%]
+tests\test_research_engine.py ............                               [ 31%]
+tests\test_research_repository.py ...............                        [ 37%]
+tests\test_research_synthesis.py ................                        [ 43%]
+tests\test_research_validation.py ..............                         [ 48%]
+tests\test_research_writer.py ....................                       [ 55%]
+tests\test_topic_discovery.py ......                                     [ 57%]
+tests\test_workflow.py ....................                              [ 64%]
+tests\test_workflow_api.py ................                              [ 70%]
+tests\test_workflow_failure_api.py ....                                  [ 72%]
+tests\test_workflow_failure_recovery.py .........                        [ 75%]
+tests\test_workflow_governance.py ............                           [ 79%]
+tests\test_workflow_governance_api.py ....                               [ 81%]
+tests\test_workflow_inspection_api.py ......                             [ 83%]
+tests\test_workflow_observability.py ......                              [ 85%]
+tests\test_workflow_performance.py ....                                  [ 87%]
+tests\test_workflow_policy.py ...............                            [ 92%]
+tests\test_workflow_policy_api.py .....                                  [ 94%]
+tests\test_workflow_repository.py .......                                [ 97%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 274 passed, 1 warning in 84.22s (0:01:24) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Deterministic Optimization**: Optimizations rely on batch SQL execution, repository instance reuse, and single-transaction operations. No thread pools or non-deterministic concurrency are used.
+- **Execution Safeguards**: All publishing remains strictly dry-run simulation.
+
+**Code Review Verification:**
+
+- Verified `get_topics_by_ids` implementation in `topic_repository.py`.
+- Verified `executemany` bulk insert in `workflow_repository.py`.
+- Verified batch topic pre-fetching in `orchestrator.py`.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling, retries, or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+Pending
+
+
+
+## Session 024 — Advanced Multi-Topic Failure Recovery & Error Diagnostics
+
+### Prompt
+Implement the next backend milestone: advanced multi-topic failure recovery and deterministic error diagnostics for the SignalForge workflow.
+
+Objectives:
+1. Ensure failure isolation between independent topics during multi-topic workflow execution.
+2. Ensure a failed topic preserves all completed stage history for that topic.
+3. Ensure independent topics continue processing after another topic fails.
+4. Ensure final workflow status correctly resolves to PARTIAL_SUCCESS when at least one topic publishes successfully and another topic fails.
+5. Ensure final workflow status resolves to FAILED when all executable topics fail and no publication succeeds.
+6. Ensure BLOCKED and SKIPPED stages remain distinguishable from FAILED stages.
+7. Add deterministic per-topic failure diagnostics containing failed stage, sanitized reason, and relevant entity IDs.
+8. Preserve complete workflow traceability after mixed success/failure execution.
+9. Ensure API status and inspection endpoints expose the new diagnostics without leaking stack traces, SQL, filesystem paths, credentials, or internal implementation details.
+10. Preserve backward compatibility with existing workflows and legacy records.
+11. Do not introduce retries, background workers, queues, LLM calls, or real external publishing.
+12. Keep execution deterministic and synchronous.
+
+Required implementation areas:
+- workflow orchestrator multi-topic failure isolation and recovery behavior
+- workflow models/result structures
+- repository persistence for diagnostics if required
+- workflow status/inspection API schemas
+- API response integration
+- automated unit and API integration tests
+- controlled live verification script
+
+Required test coverage:
+- one topic fails while another succeeds
+- multiple topics fail independently
+- all topics fail
+- failed topic retains completed stages
+- independent topic continues after failure
+- PARTIAL_SUCCESS calculation
+- FAILED calculation
+- BLOCKED versus FAILED versus SKIPPED semantics
+- deterministic diagnostic ordering
+- sanitized diagnostic messages
+- persistence and process-restart survival
+- inspection/status API exposure
+- legacy workflow compatibility
+- endpoint idempotency
+
+Safety constraints:
+- no real external publishing
+- no LLM calls
+- no scheduling/background execution
+- no automatic retries
+- no credentials or secrets persisted
+- no raw exceptions exposed through APIs
+- no destructive database migrations
+- preserve all existing functionality
+
+After implementation:
+1. Run the complete backend pytest suite.
+2. Run the controlled live multi-topic failure/recovery verification against data/signalforge.db.
+3. Review all modified and newly created files.
+4. Verify the existing 9-stage workflow, policy, governance, persona alignment, feed, inspection, and performance behavior remain intact.
+5. Report exact files created/modified.
+6. Report all tests and their result.
+7. Report live verification results.
+8. Report any assumptions or limitations.
+9. Update prompts.md with the completed Session 024 development record and leave `Commit: Pending`.
+10. Do NOT commit or push anything.
+
+The implementation should be production-minded but strictly scoped to this milestone. Avoid speculative abstractions or unrelated refactoring.
+
+**Result:**
+
+Implemented advanced multi-topic failure recovery and deterministic error diagnostics for the SignalForge workflow orchestrator.
+
+Created:
+
+- `backend/app/services/workflow/diagnostics.py`
+- `backend/tests/test_workflow_failure_recovery_advanced.py`
+- `backend/tests/test_workflow_failure_diagnostics_api.py`
+
+Modified:
+
+- `backend/app/services/workflow/__init__.py`
+- `backend/app/services/workflow/models.py`
+- `backend/app/services/workflow/orchestrator.py`
+- `backend/app/repositories/workflow_repository.py`
+- `backend/app/api/workflow_schemas.py`
+- `backend/app/api/agent.py`
+- `prompts.md`
+
+Key improvements:
+- **Per-topic Failure Isolation**: Exceptions or research failures in one independent topic no longer crash or halt processing of remaining topics.
+- **Traceability & Diagnostics Data Model**: Created `TopicFailureDiagnostic` dataclass and integrated `diagnostics` into `AgentWorkflowResult`, `workflows.traceability`, and workflow API response models (`WorkflowRunResponse`, `WorkflowSummaryResponse`, `WorkflowInspectionResponse`).
+- **Information Sanitizer**: Implemented `sanitize_failure_reason()` to strip raw stack traces, SQL, filesystem paths, passwords, and credentials from diagnostic outputs.
+- **Status Resolution**: Correctly resolves multi-topic workflow status to `PARTIAL_SUCCESS` when at least one topic succeeds and others fail/block, or `FAILED` when all topics fail.
+
+**Human Verification:**
+
+- Verified per-topic failure isolation: Topic 1 failure does not prevent Topic 2 from completing all 9 stages through dry-run publication.
+- Verified stage history preservation for failed topics.
+- Verified sanitization of internal stack traces, DB file paths, and SQL statements.
+- Verified API responses for `POST /run`, `GET /{workflow_id}/inspection`, and `GET /workflows` expose `diagnostics`.
+- Verified diagnostics survive process restarts via SQLite persistence in `workflows.traceability`.
+- Executed controlled live verification script (`scratch/test_live_workflow_failure_recovery.py`) against `data/signalforge.db`.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 284 items
+
+tests\test_agent_init.py .....                                           [  1%]
+tests\test_backend_integration_audit.py .....                            [  3%]
+tests\test_content_brief.py ................                             [  9%]
+tests\test_database.py .....                                             [ 10%]
+tests\test_editorial_engine.py ..........                                [ 14%]
+tests\test_editorial_quality.py ....                                     [ 15%]
+tests\test_persona_alignment.py .......                                  [ 18%]
+tests\test_persona_api.py .....                                          [ 20%]
+tests\test_publishing.py ..................                              [ 26%]
+tests\test_research_engine.py ............                               [ 30%]
+tests\test_research_repository.py ...............                        [ 35%]
+tests\test_research_synthesis.py ................                        [ 41%]
+tests\test_research_validation.py ..............                         [ 46%]
+tests\test_research_writer.py ....................                       [ 53%]
+tests\test_topic_discovery.py ......                                     [ 55%]
+tests\test_workflow.py ....................                              [ 62%]
+tests\test_workflow_api.py ................                              [ 68%]
+tests\test_workflow_failure_api.py ....                                  [ 69%]
+tests\test_workflow_failure_diagnostics_api.py ...                       [ 70%]
+tests\test_workflow_failure_recovery.py .........                        [ 73%]
+tests\test_workflow_failure_recovery_advanced.py .......                 [ 76%]
+tests\test_workflow_governance.py ............                           [ 80%]
+tests\test_workflow_governance_api.py ....                               [ 82%]
+tests\test_workflow_inspection_api.py ......                             [ 84%]
+tests\test_workflow_observability.py ......                              [ 86%]
+tests\test_workflow_performance.py ....                                  [ 87%]
+tests\test_workflow_policy.py ...............                            [ 92%]
+tests\test_workflow_policy_api.py .....                                  [ 94%]
+tests\test_workflow_repository.py .......                                [ 97%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 284 passed, 1 warning in 68.23s (0:01:08) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Deterministic Execution**: Failure recovery operates synchronously and deterministically per topic without retries, threads, or background workers.
+- **Sanitized Information Exposure**: Diagnostic reasons omit raw exception traces and file paths while preserving human-readable error descriptions.
+
+**Code Review Verification:**
+
+- Verified failure isolation in `orchestrator.py`.
+- Verified diagnostic persistence and process-restart retrieval in `SQLiteWorkflowRepository`.
+- Verified `diagnostics` field exposure in `WorkflowRunResponse`, `WorkflowSummaryResponse`, and `WorkflowInspectionResponse`.
+- Verified zero raw stack traces or DB credentials in diagnostics.
+- Verified backward compatibility for legacy workflows without diagnostics.
+- Verified 284 out of 284 tests pass.
+
+**Commit:**
+
+Pending
+
+
+## Session 025 — Production Hardening, Rate Limiting & Input Sanitization
+
+### Prompt
+Implement production hardening for the SignalForge backend without changing the core architecture.
+
+Objectives:
+- Harden externally supplied API inputs and Pydantic validation.
+- Add reasonable bounds for strings, lists, identifiers, pagination, and workflow parameters.
+- Verify parameterized SQL usage and prevent unsafe raw SQL interpolation.
+- Implement lightweight deterministic process-local rate limiting for mutation/expensive endpoints, especially workflow execution, persona updates, and feed configuration updates.
+- Return HTTP 429 with appropriate retry metadata when limits are exceeded.
+- Make rate-limit tests deterministic without long sleeps.
+- Audit API exception handling and ensure sanitized error responses never expose tracebacks, SQL statements, filesystem/database paths, credentials, tokens, or internal exception details.
+- Preserve expected HTTP 422 validation errors.
+- Add focused security and rate-limit regression tests.
+- Preserve all existing workflow policy, governance, persona alignment, failure recovery, diagnostics, performance, feed, inspection, and history behavior.
+- Do not introduce Redis, Celery, RQ, external services, background workers, real publishing, or LLM calls.
+- Do not perform destructive database migrations.
+- Preserve backward compatibility with all existing valid API requests.
+
+### Verification Requirements
+- Run the complete backend pytest suite.
+- Add focused Session 025 tests.
+- Perform controlled live verification against `data/signalforge.db`.
+- Verify valid workflow execution, persona APIs, feed configuration APIs, unsafe input rejection, rate limiting, sanitized errors, workflow inspection/history/feed behavior.
+- Perform manual code review for security, regression, performance, and architectural integrity.
+
+### Expected Safety Constraints
+- Zero LLM calls.
+- Zero real external publishing.
+- Zero scheduling/background workers.
+- No external rate-limit infrastructure.
+- No destructive database changes.
+- No secrets or credentials introduced.
+
+**Result:**
+
+Implemented production hardening, process-local rate limiting, and input sanitization for the SignalForge backend.
+
+Created:
+- `backend/app/core/rate_limiter.py`
+- `backend/app/api/validators.py`
+- `backend/tests/conftest.py`
+- `backend/tests/test_production_hardening.py`
+
+Modified:
+- `backend/app/main.py`
+- `backend/app/api/agent.py`
+- `backend/app/api/persona_schemas.py`
+- `backend/app/api/workflow_schemas.py`
+- `backend_roadmap.md`
+- `prompts.md`
+
+Key Hardening Features:
+1. **Input Hardening & Payload Bounds**: Added `validate_identifier()`, `validate_pagination()`, and `validate_status_filter()` protecting against path traversal (`..`, `/`, `\`), empty IDs, oversized IDs (> 100 chars), credential strings, negative/excessive pagination (`limit` 1–100, `offset` 0–10000), and oversized JSON payload lists (> 50 items) or list items (> 100 chars).
+2. **Process-Local Rate Limiting**: Built lightweight in-memory `ProcessLocalRateLimiter` with agent ID identity resolution and injectable time functions for deterministic zero-sleep testing.
+   - `POST /{agent_id}/workflow/run`: 5 req / 60s per agent ID
+   - `PUT /{agent_id}/persona`: 10 req / 60s per agent ID
+   - `PUT /{agent_id}/feed/config`: 10 req / 60s per agent ID
+   Returns HTTP 429 Too Many Requests with `Retry-After: <seconds>` header.
+3. **Global Error Sanitization**: Added global FastAPI unhandled exception handler in `main.py` guaranteeing zero Python tracebacks, raw SQL queries, SQLite/filesystem paths, passwords, secrets, or internal exception details are returned to clients.
+4. **Parameterized SQL Integrity**: Confirmed all SQLite queries remain 100% parameterized without raw string interpolation.
+
+**Human Verification:**
+
+- Verified persona GET/PUT endpoints.
+- Verified feed configuration GET/PUT endpoints.
+- Verified workflow execution, inspection, and history endpoints.
+- Verified feed retrieval endpoint.
+- Verified HTTP 422 rejection of oversized list items and invalid pagination.
+- Verified HTTP 429 Rate Limiting and `Retry-After` header metadata.
+- Verified malformed path identifier sanitization and rejection.
+- Executed controlled live verification script (`scratch/test_live_production_hardening.py`) against `data/signalforge.db`.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 291 items
+
+tests\test_agent_init.py .....                                           [  1%]
+tests\test_backend_integration_audit.py .....                            [  3%]
+tests\test_content_brief.py ................                             [  8%]
+tests\test_database.py .....                                             [ 10%]
+tests\test_editorial_engine.py ..........                                [ 14%]
+tests\test_editorial_quality.py ....                                     [ 15%]
+tests\test_persona_alignment.py .......                                  [ 17%]
+tests\test_persona_api.py .....                                          [ 19%]
+tests\test_production_hardening.py .......                               [ 21%]
+tests\test_publishing.py ..................                              [ 28%]
+tests\test_research_engine.py ............                               [ 32%]
+tests\test_research_repository.py ...............                        [ 37%]
+tests\test_research_synthesis.py ................                        [ 42%]
+tests\test_research_validation.py ..............                         [ 47%]
+tests\test_research_writer.py ....................                       [ 54%]
+tests\test_topic_discovery.py ......                                     [ 56%]
+tests\test_workflow.py ....................                              [ 63%]
+tests\test_workflow_api.py ................                              [ 69%]
+tests\test_workflow_failure_api.py ....                                  [ 70%]
+tests\test_workflow_failure_diagnostics_api.py ...                       [ 71%]
+tests\test_workflow_failure_recovery.py .........                        [ 74%]
+tests\test_workflow_failure_recovery_advanced.py .......                 [ 76%]
+tests\test_workflow_governance.py ............                           [ 81%]
+tests\test_workflow_governance_api.py ....                               [ 82%]
+tests\test_workflow_inspection_api.py ......                             [ 84%]
+tests\test_workflow_observability.py ......                              [ 86%]
+tests\test_workflow_performance.py ....                                  [ 87%]
+tests\test_workflow_policy.py ...............                            [ 93%]
+tests\test_workflow_policy_api.py .....                                  [ 94%]
+tests\test_workflow_repository.py .......                                [ 97%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================= 291 passed, 2 warnings in 69.99s (0:01:09) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Process-Local Scope**: Rate limiting is process-local in-memory. Distributed deployments would require a shared Redis store.
+- **Deterministic Testing**: Fast, sleep-free rate-limit tests rely on injectable time functions and autouse fixture reset hooks in `conftest.py`.
+
+**Code Review Verification:**
+
+- Verified input validators in `validators.py`.
+- Verified process-local rate limiters in `rate_limiter.py`.
+- Verified global exception handler in `main.py`.
+- Verified 291 out of 291 tests pass.
+- Verified uncommitted working tree state.
+
+**Commit:**
+
+feat: harden backend APIs and add rate limiting
+
 
