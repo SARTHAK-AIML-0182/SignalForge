@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Header,
   NovaPersonaPanel,
@@ -18,13 +18,15 @@ import {
   mockDataSources,
   mockActivityTimeline,
 } from './mock/mockData';
-import type { Signal, NovaAgentStatus, ActivityEvent } from './types';
+import type { Signal, NovaAgentStatus, ActivityEvent, PublishedPost } from './types';
+import { getFeed } from './services/agentApi';
+import { getStoredAgentId, adaptFeedPosts } from './services/postAdapter';
 import { LayoutDashboard, Radio, Send, FilterX, Network, Activity } from 'lucide-react';
 
 export function App() {
   const [status, setStatus] = useState<NovaAgentStatus>(mockNovaStatus);
   const [signals, setSignals] = useState<Signal[]>(mockSignals);
-  const [publishedPosts] = useState(mockPublishedPosts);
+  const [publishedPosts, setPublishedPosts] = useState<PublishedPost[]>(mockPublishedPosts);
   const [rejectedTopics] = useState(mockRejectedTopics);
   const [sources] = useState(mockDataSources);
   const [timeline, setTimeline] = useState<ActivityEvent[]>(mockActivityTimeline);
@@ -32,6 +34,50 @@ export function App() {
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SIGNALS' | 'PUBLISHED' | 'REJECTED' | 'SOURCES' | 'TIMELINE'>('OVERVIEW');
   const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+
+  const isFetchingRef = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLiveFeed = async () => {
+      const agentId = getStoredAgentId();
+      if (!agentId) {
+        console.warn(
+          'SignalForge: No agent ID found in localStorage (signalforge_agent_id) or VITE_AGENT_ID env. Using fallback mock published posts.'
+        );
+        return;
+      }
+
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
+      try {
+        const feedData = await getFeed(agentId);
+        if (isMounted && feedData && Array.isArray(feedData.posts) && feedData.posts.length > 0) {
+          const adaptedPosts = adaptFeedPosts(feedData.posts);
+          if (adaptedPosts.length > 0) {
+            setPublishedPosts(adaptedPosts);
+          }
+        }
+      } catch (error) {
+        console.warn('SignalForge: Failed to load live agent feed from backend, keeping fallback posts:', error);
+      } finally {
+        isFetchingRef.current = false;
+      }
+    };
+
+    fetchLiveFeed();
+
+    const intervalId = setInterval(() => {
+      fetchLiveFeed();
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // Trigger manual force scan simulation
   const handleTriggerScan = () => {
