@@ -102,3 +102,156 @@ Pending.
 **Git Commit:**
 
 Pending.
+
+
+## Prompt 00X — Frontend API Integration
+
+**Date:** 2026-08-09
+
+**AI Tool:** Antigravity
+
+**Team Member:** Frontend
+
+**Purpose:**
+Create a typed frontend API service based on the verified backend API contracts.
+
+**Backend contracts verified:**
+
+- POST /api/agent/init
+- GET /api/agent/feed
+- GET /api/agent/{agent_id}/workflows
+- GET /api/agent/{agent_id}/workflow/{workflow_id}
+- GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection
+
+**Prompt:**
+
+We are now integrating the existing SignalForge React frontend with the already-built FastAPI backend.
+
+IMPORTANT:
+- Do not modify any backend files.
+- Do not change existing UI components yet.
+- Do not remove mockData.ts.
+- Do not add unnecessary dependencies.
+- Do not invent API endpoints.
+- Use the verified backend contracts below exactly.
+
+Create:
+
+src/services/agentApi.ts
+
+The service should use the existing Vite environment configuration or create the minimal configuration required for an API base URL.
+
+Verified backend endpoints:
+
+1. Initialize agent
+
+POST /api/agent/init
+
+2. Get feed
+
+GET /api/agent/feed?agentId={agentId}
+
+Verified feed response:
+
+{
+  "agentId": "string",
+  "posts": [
+    {
+      "id": "string",
+      "title": "string",
+      "content": "string",
+      "publishedAt": "string",
+      "sources": ["string"],
+      "rationale": "string"
+    }
+  ],
+  "status": "ok",
+  "timestamp": "string"
+}
+
+3. List workflows
+
+GET /api/agent/{agent_id}/workflows
+
+Verified response:
+
+{
+  "items": [
+    {
+      "workflow_id": "string",
+      "agent_id": "string",
+      "status": "string",
+      "started_at": "string",
+      "completed_at": "string",
+      "duration_seconds": 0,
+      "is_successful": true,
+      "rationale": "string",
+      "selected_topic_count": 0,
+      "selected_topic_ids_count": 0,
+      "research_count": 0,
+      "draft_count": 0,
+      "publication_count": 0,
+      "publication_ids_count": 0
+    }
+  ],
+  "total": 0,
+  "limit": 0,
+  "offset": 0
+}
+
+4. Get workflow status
+
+GET /api/agent/{agent_id}/workflow/{workflow_id}
+
+5. Inspect workflow
+
+GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection
+
+For endpoints 4 and 5, inspect the existing backend TypeScript/API documentation if available in the repository before defining response types. Do not invent response fields.
+
+Create strongly typed functions for the verified endpoints.
+
+Suggested functions:
+
+initializeAgent(...)
+getFeed(agentId)
+getWorkflows(agentId)
+getWorkflow(agentId, workflowId)
+inspectWorkflow(agentId, workflowId)
+
+Use fetch rather than adding a new HTTP library.
+
+Handle non-2xx responses with useful errors.
+
+Keep all API communication inside agentApi.ts.
+
+Do not connect these functions to React components yet.
+
+Do not modify mockData.ts.
+
+After implementation:
+1. Run the frontend TypeScript/build validation.
+2. Fix any TypeScript errors.
+3. Report exactly which files were changed.
+
+**AI Action / Output:**
+
+Antigravity was instructed to create a typed frontend API service at `frontend/src/services/agentApi.ts` based on the verified FastAPI contracts, without connecting it to React components yet.
+
+**Human Review / Decisions:**
+
+The generated changes are being reviewed before committing; backend files and mock data must remain untouched.
+
+**Files Changed:**
+
+- `frontend/src/services/agentApi.ts`
+- `frontend/.env.example`
+- `frontend/package.json`
+- `prompts.md`
+
+**Git Commit:**
+
+docs: update AI prompt log for frontend API integration
+
+
+
