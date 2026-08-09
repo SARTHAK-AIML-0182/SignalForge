@@ -117,5 +117,41 @@ def init_db(db_path: Optional[Union[str, Path]] = None) -> None:
                 FOREIGN KEY (research_id) REFERENCES research (research_id) ON DELETE CASCADE
             );
             """)
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS workflows (
+                workflow_id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'RUNNING',
+                started_at TEXT NOT NULL,
+                completed_at TEXT,
+                is_successful INTEGER NOT NULL DEFAULT 0,
+                halted_at_stage TEXT,
+                rationale TEXT,
+                selected_topic_ids TEXT NOT NULL DEFAULT '[]',
+                research_ids TEXT NOT NULL DEFAULT '[]',
+                draft_ids TEXT NOT NULL DEFAULT '[]',
+                publication_ids TEXT NOT NULL DEFAULT '[]',
+                traceability TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY (agent_id) REFERENCES agents (agent_id) ON DELETE CASCADE
+            );
+            """)
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_stages (
+                stage_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workflow_id TEXT NOT NULL,
+                stage_name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                started_at TEXT NOT NULL,
+                completed_at TEXT NOT NULL,
+                is_successful INTEGER NOT NULL DEFAULT 0,
+                rationale TEXT,
+                entity_ids TEXT NOT NULL DEFAULT '{}',
+                metadata TEXT NOT NULL DEFAULT '{}',
+                stage_order INTEGER NOT NULL,
+                FOREIGN KEY (workflow_id) REFERENCES workflows (workflow_id) ON DELETE CASCADE
+            );
+            """)
     finally:
         conn.close()

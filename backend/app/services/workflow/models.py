@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 
 class WorkflowStatus:
+    RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
     PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
     NO_CONTENT = "NO_CONTENT"

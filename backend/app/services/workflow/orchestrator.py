@@ -5,18 +5,24 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from app.repositories import (
+from app.repositories.agent_repository import (
     BaseAgentRepository,
-    BaseEvidenceRepository,
-    BaseResearchRepository,
-    BaseTopicRepository,
     SQLiteAgentRepository,
-    SQLiteEvidenceRepository,
-    SQLiteResearchRepository,
-    SQLiteTopicRepository,
     get_agent_repository,
+)
+from app.repositories.evidence_repository import (
+    BaseEvidenceRepository,
+    SQLiteEvidenceRepository,
     get_evidence_repository,
+)
+from app.repositories.research_repository import (
+    BaseResearchRepository,
+    SQLiteResearchRepository,
     get_research_repository,
+)
+from app.repositories.topic_repository import (
+    BaseTopicRepository,
+    SQLiteTopicRepository,
     get_topic_repository,
 )
 from app.services.discovery import discover_topics
@@ -47,6 +53,7 @@ def run_agent_workflow(
     topic_repo: Optional[BaseTopicRepository] = None,
     research_repo: Optional[BaseResearchRepository] = None,
     evidence_repo: Optional[BaseEvidenceRepository] = None,
+    workflow_repo: Optional[Any] = None,
     http_client: Optional[httpx.Client] = None,
     publishing_adapter: Optional[BasePublishingAdapter] = None,
     feeds: Optional[List[Any]] = None,
@@ -63,7 +70,7 @@ def run_agent_workflow(
         config = WorkflowConfig()
 
     db_path = None
-    for r in [topic_repo, agent_repo, research_repo, evidence_repo]:
+    for r in [topic_repo, agent_repo, research_repo, evidence_repo, workflow_repo]:
         if r is not None and hasattr(r, "db_path"):
             db_path = r.db_path
             break
@@ -76,6 +83,19 @@ def run_agent_workflow(
         research_repo = SQLiteResearchRepository(db_path) if db_path else get_research_repository()
     if evidence_repo is None:
         evidence_repo = SQLiteEvidenceRepository(db_path) if db_path else get_evidence_repository()
+    if workflow_repo is None:
+        from app.repositories.workflow_repository import (
+            SQLiteWorkflowRepository,
+            get_workflow_repository,
+        )
+        workflow_repo = SQLiteWorkflowRepository(db_path) if db_path else get_workflow_repository()
+
+    def _persist_result(res: AgentWorkflowResult) -> AgentWorkflowResult:
+        try:
+            workflow_repo.save_workflow(res)
+        except Exception as save_err:
+            logger.error(f"Failed to persist workflow {res.workflow_id}: {save_err}")
+        return res
 
     stages: List[WorkflowStageResult] = []
     selected_topic_ids: List[str] = []
@@ -83,6 +103,26 @@ def run_agent_workflow(
     draft_ids: List[str] = []
     publication_ids: List[str] = []
     traceability: Dict[str, Any] = {}
+
+    # Persist initial RUNNING status record
+    _persist_result(
+        AgentWorkflowResult(
+            workflow_id=workflow_id,
+            agent_id=agent_id,
+            status=WorkflowStatus.RUNNING,
+            started_at=started_at,
+            completed_at="",
+            stages=[],
+            selected_topic_ids=[],
+            research_ids=[],
+            draft_ids=[],
+            publication_ids=[],
+            is_successful=False,
+            halted_at_stage=None,
+            rationale="Workflow execution in progress.",
+            traceability={},
+        )
+    )
 
     # ------------------------------------------------------------------
     # STAGE 1 — TOPIC DISCOVERY
@@ -125,21 +165,23 @@ def run_agent_workflow(
             )
         )
         completed_at = datetime.now(timezone.utc).isoformat()
-        return AgentWorkflowResult(
-            workflow_id=workflow_id,
-            agent_id=agent_id,
-            status=WorkflowStatus.FAILED,
-            started_at=started_at,
-            completed_at=completed_at,
-            stages=stages,
-            selected_topic_ids=[],
-            research_ids=[],
-            draft_ids=[],
-            publication_ids=[],
-            is_successful=False,
-            halted_at_stage="topic_discovery",
-            rationale="Workflow halted: Topic discovery failed completely.",
-            traceability={},
+        return _persist_result(
+            AgentWorkflowResult(
+                workflow_id=workflow_id,
+                agent_id=agent_id,
+                status=WorkflowStatus.FAILED,
+                started_at=started_at,
+                completed_at=completed_at,
+                stages=stages,
+                selected_topic_ids=[],
+                research_ids=[],
+                draft_ids=[],
+                publication_ids=[],
+                is_successful=False,
+                halted_at_stage="topic_discovery",
+                rationale="Workflow halted: Topic discovery failed completely.",
+                traceability={},
+            )
         )
 
     # ------------------------------------------------------------------
@@ -187,21 +229,23 @@ def run_agent_workflow(
             )
         )
         completed_at = datetime.now(timezone.utc).isoformat()
-        return AgentWorkflowResult(
-            workflow_id=workflow_id,
-            agent_id=agent_id,
-            status=WorkflowStatus.FAILED,
-            started_at=started_at,
-            completed_at=completed_at,
-            stages=stages,
-            selected_topic_ids=[],
-            research_ids=[],
-            draft_ids=[],
-            publication_ids=[],
-            is_successful=False,
-            halted_at_stage="editorial_evaluation",
-            rationale="Workflow halted: Editorial evaluation failed.",
-            traceability={},
+        return _persist_result(
+            AgentWorkflowResult(
+                workflow_id=workflow_id,
+                agent_id=agent_id,
+                status=WorkflowStatus.FAILED,
+                started_at=started_at,
+                completed_at=completed_at,
+                stages=stages,
+                selected_topic_ids=[],
+                research_ids=[],
+                draft_ids=[],
+                publication_ids=[],
+                is_successful=False,
+                halted_at_stage="editorial_evaluation",
+                rationale="Workflow halted: Editorial evaluation failed.",
+                traceability={},
+            )
         )
 
     # Early exit if zero topics passed editorial selection
@@ -229,21 +273,23 @@ def run_agent_workflow(
             )
 
         completed_at = datetime.now(timezone.utc).isoformat()
-        return AgentWorkflowResult(
-            workflow_id=workflow_id,
-            agent_id=agent_id,
-            status=WorkflowStatus.NO_CONTENT,
-            started_at=started_at,
-            completed_at=completed_at,
-            stages=stages,
-            selected_topic_ids=[],
-            research_ids=[],
-            draft_ids=[],
-            publication_ids=[],
-            is_successful=True,
-            halted_at_stage=None,
-            rationale="NO CONTENT: Workflow completed cleanly, but zero topics met the editorial selection threshold.",
-            traceability={},
+        return _persist_result(
+            AgentWorkflowResult(
+                workflow_id=workflow_id,
+                agent_id=agent_id,
+                status=WorkflowStatus.NO_CONTENT,
+                started_at=started_at,
+                completed_at=completed_at,
+                stages=stages,
+                selected_topic_ids=[],
+                research_ids=[],
+                draft_ids=[],
+                publication_ids=[],
+                is_successful=True,
+                halted_at_stage=None,
+                rationale="NO CONTENT: Workflow completed cleanly, but zero topics met the editorial selection threshold.",
+                traceability={},
+            )
         )
 
     # ------------------------------------------------------------------
@@ -619,19 +665,21 @@ def run_agent_workflow(
         workflow_rationale = "WORKFLOW NO CONTENT: Zero topics selected for processing."
 
     completed_at = datetime.now(timezone.utc).isoformat()
-    return AgentWorkflowResult(
-        workflow_id=workflow_id,
-        agent_id=agent_id,
-        status=overall_status,
-        started_at=started_at,
-        completed_at=completed_at,
-        stages=stages,
-        selected_topic_ids=selected_topic_ids,
-        research_ids=research_ids,
-        draft_ids=draft_ids,
-        publication_ids=publication_ids,
-        is_successful=(overall_status in (WorkflowStatus.SUCCESS, WorkflowStatus.PARTIAL_SUCCESS, WorkflowStatus.NO_CONTENT)),
-        halted_at_stage=None,
-        rationale=workflow_rationale,
-        traceability=traceability,
+    return _persist_result(
+        AgentWorkflowResult(
+            workflow_id=workflow_id,
+            agent_id=agent_id,
+            status=overall_status,
+            started_at=started_at,
+            completed_at=completed_at,
+            stages=stages,
+            selected_topic_ids=selected_topic_ids,
+            research_ids=research_ids,
+            draft_ids=draft_ids,
+            publication_ids=publication_ids,
+            is_successful=(overall_status in (WorkflowStatus.SUCCESS, WorkflowStatus.PARTIAL_SUCCESS, WorkflowStatus.NO_CONTENT)),
+            halted_at_stage=None,
+            rationale=workflow_rationale,
+            traceability=traceability,
+        )
     )

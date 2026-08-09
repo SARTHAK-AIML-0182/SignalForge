@@ -48,3 +48,22 @@ class WorkflowRunResponse(BaseModel):
     publication_ids: List[str] = Field(default_factory=list, description="IDs of dry-run publications produced")
     stages: List[WorkflowStageResponse] = Field(default_factory=list, description="Structured stage results")
     traceability: Dict[str, Any] = Field(default_factory=dict, description="9-stage end-to-end traceability mapping")
+
+
+class WorkflowSummaryResponse(BaseModel):
+    workflow_id: str = Field(..., description="Unique workflow execution ID")
+    agent_id: str = Field(..., description="Target agent ID")
+    status: str = Field(..., description="Overall workflow status")
+    started_at: str = Field(..., description="ISO 8601 UTC timestamp when workflow started")
+    completed_at: str = Field(..., description="ISO 8601 UTC timestamp when workflow completed")
+    is_successful: bool = Field(..., description="Whether workflow execution succeeded")
+    rationale: str = Field(..., description="Human-readable workflow execution rationale")
+    selected_topic_ids_count: int = Field(0, description="Count of selected topics")
+    publication_ids_count: int = Field(0, description="Count of publications produced")
+
+
+class WorkflowListResponse(BaseModel):
+    items: List[WorkflowSummaryResponse] = Field(default_factory=list, description="Historical workflow execution summaries")
+    total: int = Field(..., description="Total count of workflows for agent")
+    limit: int = Field(..., description="Pagination limit")
+    offset: int = Field(..., description="Pagination offset")

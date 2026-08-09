@@ -31,6 +31,11 @@ from app.repositories.evidence_repository import (
     SQLiteEvidenceRepository,
     get_evidence_repository,
 )
+from app.repositories.workflow_repository import (
+    BaseWorkflowRepository,
+    SQLiteWorkflowRepository,
+    get_workflow_repository,
+)
 
 __all__ = [
     "AgentData",
@@ -54,4 +59,7 @@ __all__ = [
     "BaseEvidenceRepository",
     "SQLiteEvidenceRepository",
     "get_evidence_repository",
+    "BaseWorkflowRepository",
+    "SQLiteWorkflowRepository",
+    "get_workflow_repository",
 ]

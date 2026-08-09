@@ -3373,3 +3373,604 @@ feat: expose autonomous workflow execution API
 
 
 
+### Session 016 — Workflow Persistence & Execution Status
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+The following functionality is already implemented and tested:
+
+- FastAPI backend
+- POST /api/agent/init
+- GET /api/agent/feed
+- SQLite persistence
+- Agent repository
+- Topic repository
+- Post repository
+- Live RSS/Atom topic discovery
+- Feed parsing and normalization
+- Topic deduplication
+- Editorial judgment engine
+- Multi-factor editorial scoring
+- Selected/rejected topic persistence
+- Research repository
+- Evidence repository
+- Autonomous Research & Evidence Collection Engine
+- Research Quality & Evidence Validation
+- Research Synthesis & Intelligence
+- Content Brief generation
+- Deterministic Writer
+- Publishing abstraction
+- Dry-run publishing adapter
+- 9-stage autonomous workflow orchestrator
+- POST /api/agent/{agent_id}/workflow/run
+- Complete workflow API response serialization
+- Deterministic end-to-end traceability
+- 177 automated tests currently passing
+
+Session 015 exposed the workflow through:
+
+POST /api/agent/{agent_id}/workflow/run
+
+The endpoint currently executes the workflow synchronously and returns the complete result.
+
+However, workflow execution is currently stateless from an API perspective.
+
+There is no persistent workflow-run record and no way to retrieve a previously executed workflow by workflow_id.
+
+Now implement ONLY the Workflow Persistence & Execution Status subsystem.
+
+IMPORTANT:
+
+Do not implement scheduling.
+
+Do not implement background workers.
+
+Do not implement Celery/RQ/Redis.
+
+Do not implement real social-media publishing.
+
+Do not implement OAuth.
+
+Do not implement an LLM.
+
+Do not modify the frontend.
+
+Do not redesign the existing workflow stages.
+
+Do not replace the existing workflow orchestrator.
+
+Do not modify unrelated discovery, editorial, research, synthesis, writer, or publishing logic.
+
+The goal of this session is to make workflow execution inspectable and persistently recoverable.
+
+--------------------------------------------------
+1. WORKFLOW DATA MODEL
+--------------------------------------------------
+
+Create a persistent SQLite representation for workflow executions.
+
+A workflow run should contain at minimum:
+
+- workflow_id
+- agent_id
+- status
+- started_at
+- completed_at
+- is_successful
+- halted_at_stage
+- rationale
+- selected_topic_ids
+- research_ids
+- draft_ids
+- publication_ids
+- stage results
+- traceability
+
+Use the existing SQLite architecture.
+
+Do not create a second database.
+
+Do not introduce an unrelated persistence framework.
+
+Use the repository architecture already used by:
+
+- AgentRepository
+- TopicRepository
+- ResearchRepository
+- EvidenceRepository
+
+Create a dedicated workflow repository, for example:
+
+backend/app/repositories/workflow_repository.py
+
+Use clear interfaces such as:
+
+BaseWorkflowRepository
+
+SQLiteWorkflowRepository
+
+The repository must support at least:
+
+- create_workflow(...)
+- get_workflow(workflow_id)
+- update_workflow(...)
+- list_workflows_for_agent(agent_id)
+
+The exact method signatures may follow the existing repository conventions.
+
+--------------------------------------------------
+2. DATABASE SCHEMA
+--------------------------------------------------
+
+Extend the existing SQLite schema carefully.
+
+Create the minimum tables necessary to persist workflow execution state.
+
+Prefer normalized persistence where practical.
+
+At minimum the database must be able to reconstruct:
+
+workflow metadata
+
+and
+
+individual workflow stage results.
+
+For example, separate workflow and workflow_stage tables may be used.
+
+Do not duplicate the entire research/evidence database.
+
+Use foreign keys where appropriate.
+
+Preserve existing schema and migrations/init behavior.
+
+Existing databases must continue to initialize successfully.
+
+Existing records must remain intact.
+
+--------------------------------------------------
+3. PERSIST WORKFLOW EXECUTION
+--------------------------------------------------
+
+Modify the existing workflow orchestration flow so that a workflow execution can be persisted.
+
+The workflow should:
+
+1. Create a workflow record when execution begins.
+2. Persist the initial RUNNING state.
+3. Persist each stage result as the workflow progresses.
+4. Persist the final workflow state.
+5. Persist failure information if an unexpected exception occurs.
+6. Preserve completed stage information even if a later stage fails.
+
+The persisted state must correspond to the actual returned AgentWorkflowResult.
+
+Do not create a separate implementation of the workflow logic.
+
+The orchestrator remains the single source of truth for workflow execution.
+
+The persistence layer should observe/store the execution rather than duplicate the business logic.
+
+--------------------------------------------------
+4. STAGE PERSISTENCE
+--------------------------------------------------
+
+Each workflow stage should be persistable with:
+
+- workflow_id
+- stage_name
+- status
+- started_at if available
+- completed_at if available
+- rationale
+- error information if applicable
+- relevant traceability information if available
+
+Stage ordering must be preserved.
+
+The database should allow:
+
+GET workflow -> reconstruct ordered stages.
+
+Do not store Python objects directly.
+
+Serialize structured values into explicit JSON/text fields where appropriate.
+
+Serialization must be deterministic.
+
+--------------------------------------------------
+5. WORKFLOW STATUS API
+--------------------------------------------------
+
+Add:
+
+GET /api/agent/{agent_id}/workflow/{workflow_id}
+
+The endpoint should:
+
+- verify the agent exists
+- verify the workflow belongs to that agent
+- return HTTP 404 if either resource is not found
+- return the persisted workflow state
+- include stage execution details
+- include traceability
+- include timestamps
+- include final rationale
+
+Use the existing Pydantic API schema architecture.
+
+Create or extend schemas as appropriate.
+
+The response should be JSON-safe and contain no implementation-specific Python objects.
+
+--------------------------------------------------
+6. LIST WORKFLOW HISTORY
+--------------------------------------------------
+
+Add:
+
+GET /api/agent/{agent_id}/workflows
+
+Support basic deterministic pagination if appropriate, for example:
+
+- limit
+- offset
+
+If pagination adds unnecessary complexity, a bounded limit is acceptable.
+
+The endpoint should return workflow summaries containing at least:
+
+- workflow_id
+- agent_id
+- status
+- started_at
+- completed_at
+- is_successful
+- rationale
+
+Do not return the complete stage payload for every historical workflow in the list endpoint.
+
+The detailed endpoint should be used for that.
+
+--------------------------------------------------
+7. STATUS CONSISTENCY
+--------------------------------------------------
+
+Define clear workflow status behavior.
+
+At minimum support the existing workflow statuses:
+
+- RUNNING
+- SUCCESS
+- PARTIAL_SUCCESS
+- NO_CONTENT
+- FAILED
+
+If the existing code already defines these statuses, reuse them.
+
+Do not create duplicate status definitions.
+
+The persisted status must exactly match the status returned by the orchestrator.
+
+Verify that:
+
+RUNNING -> final status
+
+is correctly persisted.
+
+If execution fails unexpectedly:
+
+RUNNING -> FAILED
+
+must be persisted with a sanitized rationale.
+
+--------------------------------------------------
+8. IDEMPOTENCY / DUPLICATION
+--------------------------------------------------
+
+Do not create duplicate workflow records merely because the same workflow result is queried multiple times.
+
+GET endpoints must never create records.
+
+Workflow IDs remain unique.
+
+Do not introduce artificial deduplication that changes workflow execution semantics.
+
+The same workflow_id must always resolve to the same persisted workflow record.
+
+--------------------------------------------------
+9. TRACEABILITY
+--------------------------------------------------
+
+Preserve the existing end-to-end traceability:
+
+topic_id
+-> research_id
+-> validation
+-> finding_ids
+-> claim_ids
+-> draft_id
+-> publication_id
+
+The persisted workflow must retain enough information for the API to return this traceability after the original execution has completed.
+
+Traceability must survive process restart.
+
+Do not rely on Python in-memory dictionaries.
+
+--------------------------------------------------
+10. ERROR SAFETY
+--------------------------------------------------
+
+Do not expose:
+
+- database file paths
+- stack traces
+- filesystem paths
+- internal exception implementation details
+
+through the API.
+
+Use sanitized error messages.
+
+Unexpected persistence errors must not silently produce false SUCCESS states.
+
+--------------------------------------------------
+11. TESTING
+--------------------------------------------------
+
+Add deterministic automated tests.
+
+Tests must use isolated temporary SQLite databases.
+
+Do not use live internet access.
+
+Do not use external APIs.
+
+Do not use an LLM.
+
+At minimum test:
+
+1. Workflow repository creation.
+2. Workflow retrieval.
+3. Workflow update.
+4. Workflow listing by agent.
+5. Workflow stage persistence.
+6. Ordered stage reconstruction.
+7. RUNNING status persistence.
+8. SUCCESS status persistence.
+9. PARTIAL_SUCCESS persistence.
+10. NO_CONTENT persistence.
+11. FAILED persistence.
+12. Workflow traceability persistence.
+13. Workflow API GET by workflow_id.
+14. API 404 for unknown agent.
+15. API 404 for unknown workflow.
+16. API 404 when workflow belongs to another agent.
+17. Workflow history endpoint.
+18. Pagination/limit behavior if implemented.
+19. JSON serialization.
+20. Persistence surviving repository re-instantiation.
+21. No duplicate workflow records from GET requests.
+22. Existing workflow execution behavior remains intact.
+23. Existing research/evidence persistence remains intact.
+24. Existing publishing safety remains intact.
+
+Preserve every existing test.
+
+--------------------------------------------------
+12. REGRESSION VERIFICATION
+--------------------------------------------------
+
+Run the complete test suite:
+
+python -m pytest
+
+The complete suite must pass.
+
+Do not accept partial test success.
+
+Inspect any failures and fix only issues related to this session.
+
+Do not weaken existing tests to make them pass.
+
+--------------------------------------------------
+13. CONTROLLED LIVE VERIFICATION
+--------------------------------------------------
+
+After tests pass, perform a controlled local workflow execution using the existing SQLite database.
+
+Use the existing NOVA agent if available.
+
+The test must remain local/deterministic.
+
+Dry-run publishing must remain enabled.
+
+Verify:
+
+1. Workflow executes successfully.
+2. Workflow ID is returned.
+3. Workflow record exists in SQLite.
+4. Stage records exist.
+5. GET /api/agent/{agent_id}/workflow/{workflow_id} returns the same workflow.
+6. Workflow history endpoint returns the workflow.
+7. Traceability survives retrieval.
+8. No real publishing occurs.
+9. No LLM calls occur.
+
+Do not make any real external publication request.
+
+--------------------------------------------------
+14. ARCHITECTURAL REQUIREMENTS
+--------------------------------------------------
+
+Keep the architecture modular:
+
+API
+  ->
+workflow service/orchestrator
+  ->
+workflow repository
+  ->
+SQLite
+
+Do not put SQL directly inside FastAPI route handlers.
+
+Do not put HTTP logic inside repositories.
+
+Do not duplicate workflow business logic inside API routes.
+
+The existing workflow orchestrator remains responsible for workflow execution.
+
+The repository is responsible for persistence.
+
+The API is responsible for HTTP validation and serialization.
+
+--------------------------------------------------
+15. FILES
+--------------------------------------------------
+
+Create only the files necessary for this subsystem.
+
+Likely files include:
+
+backend/app/repositories/workflow_repository.py
+
+backend/app/api/workflow_schemas.py
+(existing schema file may be extended instead of creating another)
+
+backend/tests/test_workflow_repository.py
+
+backend/tests/test_workflow_status_api.py
+
+Modify only the necessary existing files, likely:
+
+backend/app/db/database.py
+
+backend/app/repositories/__init__.py
+
+backend/app/services/workflow/orchestrator.py
+
+backend/app/services/workflow/__init__.py
+
+backend/app/api/agent.py
+
+backend/app/api/workflow_schemas.py
+
+prompts.md
+
+Do not modify unrelated files.
+
+--------------------------------------------------
+16. IMPORTANT SAFETY CONSTRAINT
+--------------------------------------------------
+
+This session must NOT introduce:
+
+- background scheduling
+- autonomous recurring execution
+- real social media publishing
+- OAuth credentials
+- LLM calls
+- frontend changes
+
+This session is strictly about making workflow executions persistently observable and retrievable.
+
+--------------------------------------------------
+17. FINAL VERIFICATION REPORT
+--------------------------------------------------
+
+After implementation, report:
+
+1. Files created.
+2. Files modified.
+3. Database schema changes.
+4. Repository interface.
+5. API endpoints added.
+6. Workflow persistence behavior.
+7. Workflow status behavior.
+8. Stage persistence behavior.
+9. Traceability persistence behavior.
+10. Error-handling behavior.
+11. Complete pytest result.
+12. Controlled live verification result.
+13. Assumptions and limitations.
+14. Code-review verification.
+15. Confirmation that no LLM was used.
+16. Confirmation that no real external publishing occurred.
+17. Confirmation that no scheduling was implemented.
+
+Update prompts.md with the complete Session 016 development record.
+
+Use the existing prompts.md format and numbering.
+
+Do NOT commit or push any changes.
+
+Leave the final Git state uncommitted so it can be reviewed manually.
+
+**Result:**
+
+Implemented persistent workflow execution storage and status inspection endpoints. Added normalized `workflows` and `workflow_stages` tables to SQLite schema in `app/db/database.py`. Created `BaseWorkflowRepository` and `SQLiteWorkflowRepository` in `app/repositories/workflow_repository.py` for workflow and stage persistence, ordered stage reconstruction, and paginated agent workflow queries. Updated `run_agent_workflow()` in `app/services/workflow/orchestrator.py` to persist initial `RUNNING` status, stage progression, failure exception information, and final `AgentWorkflowResult` state in SQLite. Added `WorkflowSummaryResponse` and `WorkflowListResponse` in `app/api/workflow_schemas.py` and exposed `GET /api/agent/{agent_id}/workflow/{workflow_id}` (detailed execution status) and `GET /api/agent/{agent_id}/workflows` (paginated history) in `app/api/agent.py`. Added 15 automated unit tests in `tests/test_workflow_repository.py` and `tests/test_workflow_status_api.py`.
+
+**Human Verification:**
+
+- Verified database tables `workflows` and `workflow_stages` created cleanly on database initialization without impacting existing records.
+- Verified `GET /api/agent/{agent_id}/workflow/{workflow_id}` endpoint returns HTTP 200 with complete stage execution breakdown and 9-stage end-to-end traceability.
+- Verified HTTP 404 responses for unknown agents, unknown workflow IDs, or cross-agent workflow ID mismatches.
+- Verified `GET /api/agent/{agent_id}/workflows` returns paginated workflow summaries with `limit` and `offset` support.
+- Verified GET endpoints are idempotent and never create or mutate database records.
+- Executed controlled live verification script (`scratch/test_live_workflow_persistence.py`) against `data/signalforge.db`: persisted workflow `wf-a9725381253654a0`, directly queried SQLite rows in `workflows` and `workflow_stages`, and successfully queried both GET endpoints (`GET /workflow/{wf_id}` and `GET /workflows`).
+- Verified complete test suite: 192 passed out of 192 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 192 items
+
+tests\test_agent_init.py .....                                           [  2%]
+tests\test_content_brief.py ................                             [ 10%]
+tests\test_database.py .....                                             [ 13%]
+tests\test_editorial_engine.py ..........                                [ 18%]
+tests\test_editorial_quality.py ....                                     [ 20%]
+tests\test_publishing.py ..................                              [ 30%]
+tests\test_research_engine.py ............                               [ 36%]
+tests\test_research_repository.py ...............                        [ 44%]
+tests\test_research_synthesis.py ................                        [ 52%]
+tests\test_research_validation.py ..............                         [ 59%]
+tests\test_research_writer.py ....................                       [ 70%]
+tests\test_topic_discovery.py ......                                     [ 73%]
+tests\test_workflow.py ....................                              [ 83%]
+tests\test_workflow_api.py ................                              [ 92%]
+tests\test_workflow_repository.py .......                                [ 95%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 192 passed, 1 warning in 106.86s (0:01:46) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Synchronous Execution**: Workflow execution remains synchronous when triggered via `POST /api/agent/{agent_id}/workflow/run`, persisting `RUNNING` status at start and final status upon completion within the request lifecycle.
+- **Dry-Run Enforcement**: Dry-run publishing simulation remains strictly enabled. Zero external social media platform APIs or OAuth endpoints are connected.
+
+**Code Review Verification:**
+
+- Verified modular architecture: API -> Orchestrator -> Repository -> SQLite.
+- Verified no raw SQL inside API route handlers.
+- Verified no HTTP logic inside repository classes.
+- Verified 9-stage traceability survives process restarts and database re-instantiation.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+feat: persist workflow executions and add status APIs
+
+
+
