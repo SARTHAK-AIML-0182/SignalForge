@@ -3270,3 +3270,106 @@ tests\test_workflow.py ....................                              [100%]
 feat: add autonomous workflow orchestration
 
 
+### Session 015 — Workflow API & Execution Control
+
+**Date:** 2026-08-09
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+The following backend subsystems are already implemented, tested, committed, and pushed:
+- FastAPI backend
+- POST /api/agent/init
+- SQLite persistence
+- Agent repository
+- Topic repository
+- Post repository
+- Live RSS/Atom topic discovery
+- Feed parsing and normalization
+- Topic deduplication
+- Editorial judgment engine
+- Multi-factor editorial scoring
+- Selected/rejected topic persistence
+- Research repository
+- Evidence repository
+- Autonomous Research & Evidence Collection Engine
+- Web content extraction
+- Duplicate evidence prevention
+- Deterministic evidence confidence scoring
+- Deterministic research confidence scoring
+- Research Quality & Evidence Validation
+- Research synthesis engine
+- Content brief layer
+- Evidence-grounded content writer
+- Safe publishing & output pipeline
+- Autonomous Agent Workflow Orchestration
+
+Goal: Expose the existing workflow orchestration service through the FastAPI backend (`POST /api/agent/{agent_id}/workflow/run`). Create request/response schemas, validate input values, check agent existence, sanitize exceptions, enforce dry-run-only publishing, and preserve 9-stage end-to-end traceability.
+
+**Result:**
+
+Exposed the workflow orchestration service through FastAPI in `app/api/workflow_schemas.py` and `app/api/agent.py`. Implemented `POST /api/agent/{agent_id}/workflow/run` accepting `WorkflowRunRequest` (`max_topics >= 1`, `editorial_threshold in [0.0, 1.0]`, `enable_dry_run_publication`) and returning structured `WorkflowRunResponse` containing top-level fields, `stages` list (`WorkflowStageResponse`), and `traceability` map. Checks agent existence returning HTTP 404 for unknown agents, returns HTTP 422 for invalid payloads, returns HTTP 200 for controlled workflow statuses (`SUCCESS`, `PARTIAL_SUCCESS`, `NO_CONTENT`, `FAILED`), and catches unhandled exceptions returning sanitized HTTP 500 (`Internal workflow execution error.`). Added 16 automated unit tests in `tests/test_workflow_api.py`.
+
+**Human Verification:**
+
+- Verified `POST /api/agent/{agent_id}/workflow/run` endpoint using FastAPI `TestClient`.
+- Verified HTTP 404 response for non-existent agent IDs.
+- Verified HTTP 422 validation responses for invalid `max_topics` (< 1) or `editorial_threshold` (< 0.0 or > 1.0).
+- Verified HTTP 500 exception handling sanitizes error detail without exposing stack traces or DB paths.
+- Verified dry-run safety: API defaults to `DryRunPublishingAdapter` (`dry_run=True`) and never exposes or invokes real external publishing adapters.
+- Executed controlled live API workflow request (`scratch/test_live_workflow_api.py`) against `data/signalforge.db`: returned HTTP 200 with workflow ID `wf-61a1b83373eab330`, status `SUCCESS`, 9 stage execution results, 1 publication ID (`pub-83da0ce86136`), and complete 9-stage end-to-end traceability map. Zero real external publishing network calls performed.
+- Verified complete unit test suite: 177 passed out of 177 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 177 items
+
+tests\test_agent_init.py .....                                           [  2%]
+tests\test_content_brief.py ................                             [ 11%]
+tests\test_database.py .....                                             [ 14%]
+tests\test_editorial_engine.py ..........                                [ 20%]
+tests\test_editorial_quality.py ....                                     [ 22%]
+tests\test_publishing.py ..................                              [ 32%]
+tests\test_research_engine.py ............                               [ 39%]
+tests\test_research_repository.py ...............                        [ 48%]
+tests\test_research_synthesis.py ................                        [ 57%]
+tests\test_research_validation.py ..............                         [ 64%]
+tests\test_research_writer.py ....................                       [ 76%]
+tests\test_topic_discovery.py ......                                     [ 79%]
+tests\test_workflow.py ....................                              [ 90%]
+tests\test_workflow_api.py ................                              [100%]
+
+================== 177 passed, 1 warning in 97.56s (0:01:37) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Stateless Execution**: Omitted optional `GET /api/agent/{agent_id}/workflow/{workflow_id}` status endpoint to avoid introducing unneeded database tables or complex in-memory execution registries.
+- **Dry-Run Enforcement**: Endpoint accepts boolean `enable_dry_run_publication` and defaults to local dry-run publishing simulation without connecting to real external APIs.
+
+**Code Review Verification:**
+
+- Verified route handler is thin and delegates execution to `run_agent_workflow()`.
+- Verified agent existence check (`agent_repo.get_agent(agent_id)`).
+- Verified Pydantic request and response schemas cleanly serialize JSON fields.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+feat: expose autonomous workflow execution API"
+
+
+

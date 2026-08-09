@@ -1,10 +1,16 @@
 import secrets
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 
+from app.api.workflow_schemas import (
+    WorkflowRunRequest,
+    WorkflowRunResponse,
+    WorkflowStageResponse,
+)
 from app.repositories.agent_repository import BaseAgentRepository, get_agent_repository
+from app.services.workflow import WorkflowConfig, run_agent_workflow
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
@@ -79,3 +85,80 @@ def get_feed(agentId: str = Query(..., description="Agent ID received during ini
         status="ok",
         timestamp=now_utc,
     )
+
+
+@router.post("/{agent_id}/workflow/run", response_model=WorkflowRunResponse, status_code=status.HTTP_200_OK)
+def run_workflow_endpoint(
+    agent_id: str,
+    payload: Optional[WorkflowRunRequest] = None,
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository),
+):
+    """
+    Execute the 9-stage autonomous workflow for the specified agent.
+    Validates agent existence, runs orchestration, and returns structured workflow result.
+    """
+    agent = agent_repo.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID '{agent_id}' not found."
+        )
+
+    if payload is None:
+        payload = WorkflowRunRequest()
+
+    config_editorial_threshold = (
+        payload.editorial_threshold * 10.0
+        if payload.editorial_threshold <= 1.0
+        else payload.editorial_threshold
+    )
+
+    config = WorkflowConfig(
+        max_topics=payload.max_topics,
+        editorial_threshold=config_editorial_threshold,
+        enable_dry_run_publication=payload.enable_dry_run_publication,
+    )
+
+    try:
+        wf_result = run_agent_workflow(
+            agent_id=agent_id,
+            config=config,
+            agent_repo=agent_repo,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal workflow execution error."
+        ) from None
+
+    stage_responses = [
+        WorkflowStageResponse(
+            stage_name=st.stage_name,
+            status=st.status,
+            started_at=st.started_at,
+            completed_at=st.completed_at,
+            is_successful=st.is_successful,
+            rationale=st.rationale,
+            entity_ids=st.entity_ids,
+            metadata=st.metadata,
+        )
+        for st in wf_result.stages
+    ]
+
+    return WorkflowRunResponse(
+        workflow_id=wf_result.workflow_id,
+        agent_id=wf_result.agent_id,
+        status=wf_result.status,
+        started_at=wf_result.started_at,
+        completed_at=wf_result.completed_at,
+        is_successful=wf_result.is_successful,
+        halted_at_stage=wf_result.halted_at_stage,
+        rationale=wf_result.rationale,
+        selected_topic_ids=wf_result.selected_topic_ids,
+        research_ids=wf_result.research_ids,
+        draft_ids=wf_result.draft_ids,
+        publication_ids=wf_result.publication_ids,
+        stages=stage_responses,
+        traceability=wf_result.traceability,
+    )
+
