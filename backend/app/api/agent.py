@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 
 from app.api.workflow_schemas import (
+    WorkflowInspectionResponse,
     WorkflowListResponse,
     WorkflowRunRequest,
     WorkflowRunResponse,
     WorkflowStageResponse,
+    WorkflowStageStats,
     WorkflowSummaryResponse,
 )
 from app.repositories import (
@@ -16,6 +18,11 @@ from app.repositories import (
     BaseWorkflowRepository,
     get_agent_repository,
     get_workflow_repository,
+)
+from app.repositories.workflow_repository import (
+    calculate_duration_seconds,
+    calculate_stage_stats,
+    extract_traceability_summary,
 )
 from app.services.workflow import WorkflowConfig, run_agent_workflow
 
@@ -229,16 +236,76 @@ def get_workflow_status_endpoint(
     )
 
 
+@router.get("/{agent_id}/workflow/{workflow_id}/inspection", response_model=WorkflowInspectionResponse, status_code=status.HTTP_200_OK)
+def inspect_workflow_endpoint(
+    agent_id: str,
+    workflow_id: str,
+    agent_repo: BaseAgentRepository = Depends(get_agent_repository),
+    workflow_repo: BaseWorkflowRepository = Depends(get_workflow_repository),
+):
+    """
+    Retrieve inspection-oriented observability breakdown for a specific workflow run.
+    Includes stage statistics, execution duration, entity counts, halted stage, rationale, and concise traceability summary.
+    Returns HTTP 404 if agent or workflow is not found or if workflow belongs to another agent.
+    """
+    agent = agent_repo.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID '{agent_id}' not found."
+        )
+
+    wf = workflow_repo.get_workflow(workflow_id)
+    if not wf or wf.agent_id != agent_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow with ID '{workflow_id}' not found for agent '{agent_id}'."
+        )
+
+    duration = calculate_duration_seconds(wf.started_at, wf.completed_at)
+    stats_dict = calculate_stage_stats(wf.stages)
+    trace_summary = extract_traceability_summary(wf.traceability)
+
+    stage_stats = WorkflowStageStats(
+        total_stages=stats_dict["total_stages"],
+        succeeded_stages=stats_dict["succeeded_stages"],
+        failed_stages=stats_dict["failed_stages"],
+        blocked_stages=stats_dict["blocked_stages"],
+        skipped_stages=stats_dict["skipped_stages"],
+        running_stages=stats_dict["running_stages"],
+    )
+
+    return WorkflowInspectionResponse(
+        workflow_id=wf.workflow_id,
+        agent_id=wf.agent_id,
+        status=wf.status,
+        started_at=wf.started_at,
+        completed_at=wf.completed_at,
+        duration_seconds=duration,
+        is_successful=wf.is_successful,
+        halted_at_stage=wf.halted_at_stage,
+        rationale=wf.rationale,
+        stage_stats=stage_stats,
+        selected_topic_count=len(wf.selected_topic_ids or []),
+        research_count=len(wf.research_ids or []),
+        draft_count=len(wf.draft_ids or []),
+        publication_count=len(wf.publication_ids or []),
+        traceability_summary=trace_summary,
+    )
+
+
 @router.get("/{agent_id}/workflows", response_model=WorkflowListResponse, status_code=status.HTTP_200_OK)
 def list_workflows_endpoint(
     agent_id: str,
+    status_filter: Optional[str] = Query(default=None, alias="status", description="Filter by workflow status (e.g. SUCCESS, FAILED, NO_CONTENT)"),
+    successful: Optional[bool] = Query(default=None, alias="successful", description="Filter by overall success boolean (true/false)"),
     limit: int = Query(default=20, ge=1, le=100, description="Maximum number of historical workflows to return"),
     offset: int = Query(default=0, ge=0, description="Pagination offset"),
     agent_repo: BaseAgentRepository = Depends(get_agent_repository),
     workflow_repo: BaseWorkflowRepository = Depends(get_workflow_repository),
 ):
     """
-    Retrieve a paginated list of historical workflow execution summaries for an agent.
+    Retrieve a paginated list of historical workflow execution summaries for an agent with optional status/success filters.
     Returns HTTP 404 if agent is not found.
     """
     agent = agent_repo.get_agent(agent_id)
@@ -248,8 +315,18 @@ def list_workflows_endpoint(
             detail=f"Agent with ID '{agent_id}' not found."
         )
 
-    workflows = workflow_repo.list_workflows_by_agent(agent_id=agent_id, limit=limit, offset=offset)
-    total = workflow_repo.count_workflows_by_agent(agent_id=agent_id)
+    workflows = workflow_repo.list_workflows_by_agent(
+        agent_id=agent_id,
+        status=status_filter,
+        is_successful=successful,
+        limit=limit,
+        offset=offset,
+    )
+    total = workflow_repo.count_workflows_by_agent(
+        agent_id=agent_id,
+        status=status_filter,
+        is_successful=successful,
+    )
 
     summaries = [
         WorkflowSummaryResponse(
@@ -258,10 +335,15 @@ def list_workflows_endpoint(
             status=wf.status,
             started_at=wf.started_at,
             completed_at=wf.completed_at,
+            duration_seconds=calculate_duration_seconds(wf.started_at, wf.completed_at),
             is_successful=wf.is_successful,
             rationale=wf.rationale,
-            selected_topic_ids_count=len(wf.selected_topic_ids),
-            publication_ids_count=len(wf.publication_ids),
+            selected_topic_count=len(wf.selected_topic_ids or []),
+            selected_topic_ids_count=len(wf.selected_topic_ids or []),
+            research_count=len(wf.research_ids or []),
+            draft_count=len(wf.draft_ids or []),
+            publication_count=len(wf.publication_ids or []),
+            publication_ids_count=len(wf.publication_ids or []),
         )
         for wf in workflows
     ]

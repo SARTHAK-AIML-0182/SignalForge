@@ -56,10 +56,15 @@ class WorkflowSummaryResponse(BaseModel):
     status: str = Field(..., description="Overall workflow status")
     started_at: str = Field(..., description="ISO 8601 UTC timestamp when workflow started")
     completed_at: str = Field(..., description="ISO 8601 UTC timestamp when workflow completed")
+    duration_seconds: Optional[float] = Field(default=None, description="Execution duration in seconds")
     is_successful: bool = Field(..., description="Whether workflow execution succeeded")
     rationale: str = Field(..., description="Human-readable workflow execution rationale")
-    selected_topic_ids_count: int = Field(0, description="Count of selected topics")
-    publication_ids_count: int = Field(0, description="Count of publications produced")
+    selected_topic_count: int = Field(0, description="Count of selected topics")
+    selected_topic_ids_count: int = Field(0, description="Count of selected topics (backwards-compatible alias)")
+    research_count: int = Field(0, description="Count of research records generated")
+    draft_count: int = Field(0, description="Count of draft articles generated")
+    publication_count: int = Field(0, description="Count of publications produced")
+    publication_ids_count: int = Field(0, description="Count of publications produced (backwards-compatible alias)")
 
 
 class WorkflowListResponse(BaseModel):
@@ -67,3 +72,30 @@ class WorkflowListResponse(BaseModel):
     total: int = Field(..., description="Total count of workflows for agent")
     limit: int = Field(..., description="Pagination limit")
     offset: int = Field(..., description="Pagination offset")
+
+
+class WorkflowStageStats(BaseModel):
+    total_stages: int = Field(0, description="Total number of stages recorded")
+    succeeded_stages: int = Field(0, description="Count of SUCCEEDED stages")
+    failed_stages: int = Field(0, description="Count of FAILED stages")
+    blocked_stages: int = Field(0, description="Count of BLOCKED stages")
+    skipped_stages: int = Field(0, description="Count of SKIPPED stages")
+    running_stages: int = Field(0, description="Count of RUNNING stages")
+
+
+class WorkflowInspectionResponse(BaseModel):
+    workflow_id: str = Field(..., description="Unique workflow execution ID")
+    agent_id: str = Field(..., description="Target agent ID")
+    status: str = Field(..., description="Overall workflow status")
+    started_at: str = Field(..., description="ISO 8601 UTC timestamp when workflow started")
+    completed_at: str = Field(..., description="ISO 8601 UTC timestamp when workflow completed")
+    duration_seconds: Optional[float] = Field(default=None, description="Execution duration in seconds")
+    is_successful: bool = Field(..., description="Whether workflow execution succeeded")
+    halted_at_stage: Optional[str] = Field(default=None, description="Stage where workflow halted if failed")
+    rationale: str = Field(..., description="Human-readable workflow execution rationale")
+    stage_stats: WorkflowStageStats = Field(..., description="Stage status statistics breakdown")
+    selected_topic_count: int = Field(0, description="Count of topics selected")
+    research_count: int = Field(0, description="Count of research records generated")
+    draft_count: int = Field(0, description="Count of draft articles generated")
+    publication_count: int = Field(0, description="Count of publications produced")
+    traceability_summary: Dict[str, Any] = Field(default_factory=dict, description="Concise traceability summary")

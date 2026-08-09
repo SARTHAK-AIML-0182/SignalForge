@@ -1,13 +1,66 @@
 import json
 from abc import ABC, abstractmethod
+from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from app.db.database import get_connection
 from app.services.workflow.models import (
     AgentWorkflowResult,
     WorkflowStageResult,
 )
+
+
+def calculate_duration_seconds(started_at: str, completed_at: Optional[str]) -> Optional[float]:
+    """Calculate workflow execution duration in seconds, or None if incomplete/invalid."""
+    if not started_at or not completed_at:
+        return None
+    try:
+        dt_start = datetime.fromisoformat(started_at)
+        dt_end = datetime.fromisoformat(completed_at)
+        diff = (dt_end - dt_start).total_seconds()
+        return max(0.0, round(diff, 3))
+    except (ValueError, TypeError):
+        return None
+
+
+def calculate_stage_stats(stages: List[WorkflowStageResult]) -> dict:
+    """Calculate deterministic stage counts by status."""
+    total = len(stages)
+    succeeded = sum(1 for s in stages if s.status == "SUCCEEDED")
+    failed = sum(1 for s in stages if s.status == "FAILED")
+    blocked = sum(1 for s in stages if s.status == "BLOCKED")
+    skipped = sum(1 for s in stages if s.status == "SKIPPED")
+    running = sum(1 for s in stages if s.status == "RUNNING")
+    return {
+        "total_stages": total,
+        "succeeded_stages": succeeded,
+        "failed_stages": failed,
+        "blocked_stages": blocked,
+        "skipped_stages": skipped,
+        "running_stages": running,
+    }
+
+
+def extract_traceability_summary(traceability: dict) -> dict:
+    """Extract concise traceability summary mapping from raw traceability dictionary."""
+    summary = {}
+    if not isinstance(traceability, dict):
+        return summary
+
+    for topic_id, item in traceability.items():
+        if isinstance(item, dict):
+            summary[topic_id] = {
+                "topic_id": item.get("topic_id", topic_id),
+                "title": item.get("title", ""),
+                "research_id": item.get("research_id"),
+                "draft_id": item.get("draft_id"),
+                "publication_id": item.get("publication_id"),
+                "is_publishable": item.get("is_publishable", False),
+                "finding_count": len(item.get("finding_ids") or []),
+                "claim_count": len(item.get("claim_ids") or []),
+            }
+    return summary
 
 
 class BaseWorkflowRepository(ABC):
@@ -23,14 +76,24 @@ class BaseWorkflowRepository(ABC):
 
     @abstractmethod
     def list_workflows_by_agent(
-        self, agent_id: str, limit: int = 20, offset: int = 0
+        self,
+        agent_id: str,
+        status: Optional[str] = None,
+        is_successful: Optional[bool] = None,
+        limit: int = 20,
+        offset: int = 0,
     ) -> List[AgentWorkflowResult]:
-        """List historical workflows for an agent ordered by started_at DESC."""
+        """List historical workflows for an agent ordered by started_at DESC with optional filtering."""
         pass
 
     @abstractmethod
-    def count_workflows_by_agent(self, agent_id: str) -> int:
-        """Count total workflow runs for an agent."""
+    def count_workflows_by_agent(
+        self,
+        agent_id: str,
+        status: Optional[str] = None,
+        is_successful: Optional[bool] = None,
+    ) -> int:
+        """Count total workflow runs for an agent matching optional filters."""
         pass
 
 
@@ -170,20 +233,35 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
             conn.close()
 
     def list_workflows_by_agent(
-        self, agent_id: str, limit: int = 20, offset: int = 0
+        self,
+        agent_id: str,
+        status: Optional[str] = None,
+        is_successful: Optional[bool] = None,
+        limit: int = 20,
+        offset: int = 0,
     ) -> List[AgentWorkflowResult]:
         conn = get_connection(self.db_path)
         try:
-            cursor = conn.execute(
-                """
+            query = """
                 SELECT workflow_id, agent_id, status, started_at, completed_at,
                        is_successful, halted_at_stage, rationale, selected_topic_ids,
                        research_ids, draft_ids, publication_ids, traceability
                 FROM workflows WHERE agent_id = ?
-                ORDER BY started_at DESC LIMIT ? OFFSET ?
-                """,
-                (agent_id, limit, offset),
-            )
+            """
+            params: List[Union[str, int]] = [agent_id]
+
+            if status is not None:
+                query += " AND status = ?"
+                params.append(status)
+
+            if is_successful is not None:
+                query += " AND is_successful = ?"
+                params.append(1 if is_successful else 0)
+
+            query += " ORDER BY started_at DESC, workflow_id DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+            cursor = conn.execute(query, tuple(params))
             rows = cursor.fetchall()
             results = []
             for row in rows:
@@ -233,13 +311,26 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
         finally:
             conn.close()
 
-    def count_workflows_by_agent(self, agent_id: str) -> int:
+    def count_workflows_by_agent(
+        self,
+        agent_id: str,
+        status: Optional[str] = None,
+        is_successful: Optional[bool] = None,
+    ) -> int:
         conn = get_connection(self.db_path)
         try:
-            cursor = conn.execute(
-                "SELECT COUNT(*) as cnt FROM workflows WHERE agent_id = ?",
-                (agent_id,),
-            )
+            query = "SELECT COUNT(*) as cnt FROM workflows WHERE agent_id = ?"
+            params: List[Union[str, int]] = [agent_id]
+
+            if status is not None:
+                query += " AND status = ?"
+                params.append(status)
+
+            if is_successful is not None:
+                query += " AND is_successful = ?"
+                params.append(1 if is_successful else 0)
+
+            cursor = conn.execute(query, tuple(params))
             row = cursor.fetchone()
             return row["cnt"] if row else 0
         finally:

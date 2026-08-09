@@ -3974,3 +3974,510 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 
 
+### Session 017 — Workflow Observability & Run Inspection
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+Sessions 001–016 are complete and verified.
+
+Current backend capabilities include:
+
+- FastAPI backend
+- SQLite persistence
+- Agent initialization
+- Agent feed
+- Live RSS/Atom topic discovery
+- Topic normalization and deduplication
+- Editorial evaluation and scoring
+- Research repository
+- Evidence repository
+- Autonomous research/evidence collection
+- Research validation
+- Research synthesis
+- Content brief generation
+- Deterministic writer
+- Publishing abstraction
+- Dry-run publishing
+- 9-stage autonomous workflow orchestrator
+- POST /api/agent/{agent_id}/workflow/run
+- Persistent workflow execution records
+- Persistent workflow stage records
+- GET /api/agent/{agent_id}/workflow/{workflow_id}
+- GET /api/agent/{agent_id}/workflows
+- Durable workflow traceability
+- 192 automated tests currently passing
+
+Session 016 made workflow execution persistently observable and recoverable.
+
+The next objective is to improve workflow observability and inspection WITHOUT changing workflow execution semantics.
+
+IMPORTANT:
+
+Do not redesign the workflow orchestrator.
+
+Do not change the existing 9 workflow stages.
+
+Do not add scheduling.
+
+Do not add background workers.
+
+Do not add Celery/RQ/Redis.
+
+Do not add real social-media publishing.
+
+Do not add OAuth.
+
+Do not add an LLM.
+
+Do not modify the frontend.
+
+Do not modify unrelated research, editorial, synthesis, writer, or publishing logic.
+
+Do not create a second database.
+
+Do not weaken existing tests.
+
+The purpose of this session is to make persisted workflow executions easier to inspect and diagnose through a clean backend API.
+
+--------------------------------------------------
+1. WORKFLOW INSPECTION SUMMARY
+--------------------------------------------------
+
+Add an inspection-oriented representation of a persisted workflow execution.
+
+The inspection response should make it easy to understand:
+
+- workflow identity
+- agent identity
+- current/final status
+- execution duration
+- success/failure state
+- halted stage
+- stage counts
+- successful stage count
+- failed/blocked stage count
+- selected topic count
+- research count
+- draft count
+- publication count
+- overall rationale
+- traceability
+
+Do not duplicate workflow execution logic.
+
+Derive inspection information from the persisted workflow record and persisted stage records.
+
+--------------------------------------------------
+2. STAGE STATISTICS
+--------------------------------------------------
+
+For a workflow, calculate deterministic stage statistics.
+
+At minimum expose:
+
+- total_stages
+- succeeded_stages
+- failed_stages
+- blocked_stages
+- skipped_stages
+- running_stages
+
+Use the existing WorkflowStageStatus values.
+
+Do not create duplicate status definitions.
+
+The statistics must be derived from persisted stage records.
+
+--------------------------------------------------
+3. EXECUTION DURATION
+--------------------------------------------------
+
+Expose workflow execution duration.
+
+Use:
+
+completed_at - started_at
+
+when the workflow has completed.
+
+For RUNNING workflows, calculate duration relative to the current observation time only if this can be done deterministically and safely.
+
+Prefer returning a nullable duration for incomplete executions rather than introducing unnecessary runtime behavior.
+
+The API representation should use a JSON-safe numeric or string representation.
+
+Choose one representation and document it clearly.
+
+--------------------------------------------------
+4. INSPECTION ENDPOINT
+--------------------------------------------------
+
+Add:
+
+GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection
+
+The endpoint should:
+
+- verify the agent exists
+- verify the workflow exists
+- verify the workflow belongs to the agent
+- return HTTP 404 for invalid resources
+- return the persisted workflow inspection summary
+- include stage statistics
+- include execution duration
+- include counts of produced entities
+- include halted stage
+- include rationale
+- include traceability summary
+
+Do not return unnecessary raw database fields.
+
+Use Pydantic schemas.
+
+Keep the route handler thin.
+
+--------------------------------------------------
+5. WORKFLOW HISTORY FILTERING
+--------------------------------------------------
+
+Extend the existing:
+
+GET /api/agent/{agent_id}/workflows
+
+with deterministic optional filtering.
+
+Support useful filters such as:
+
+- status
+- successful
+- limit
+- offset
+
+Status filtering must use the existing WorkflowStatus values.
+
+Boolean filtering must distinguish:
+
+successful=true
+
+from
+
+successful=false
+
+Do not change existing endpoint behavior when filters are omitted.
+
+Pagination must remain deterministic.
+
+Use a stable ordering such as newest started_at first, with workflow_id as a deterministic tie-breaker.
+
+--------------------------------------------------
+6. WORKFLOW HISTORY SUMMARY
+--------------------------------------------------
+
+Extend workflow history summaries with lightweight observability information where appropriate.
+
+The list endpoint should remain lightweight.
+
+It may include:
+
+- workflow_id
+- agent_id
+- status
+- started_at
+- completed_at
+- is_successful
+- rationale
+- duration
+- selected_topic_count
+- research_count
+- draft_count
+- publication_count
+
+Do NOT include complete stage payloads in history results.
+
+--------------------------------------------------
+7. REPOSITORY SUPPORT
+--------------------------------------------------
+
+Extend the existing workflow repository rather than creating another repository.
+
+Add only the methods required for deterministic filtering/inspection.
+
+Possible interfaces:
+
+- list_workflows_by_agent(...)
+- count_workflows_by_agent(...)
+- get_workflow_stage_statistics(...)
+- filtered workflow listing
+
+Follow existing repository conventions.
+
+Do not put SQL in API routes.
+
+Do not put HTTP logic in repositories.
+
+--------------------------------------------------
+8. TRACEABILITY INSPECTION
+--------------------------------------------------
+
+The inspection endpoint must preserve visibility into the existing chain:
+
+topic_id
+-> research_id
+-> validation
+-> finding_ids
+-> claim_ids
+-> draft_id
+-> publication_id
+
+Do not alter the existing traceability data.
+
+Provide a concise traceability summary in the inspection response.
+
+The complete detailed traceability must remain available through the existing workflow detail endpoint.
+
+--------------------------------------------------
+9. ERROR SAFETY
+--------------------------------------------------
+
+Do not expose:
+
+- stack traces
+- filesystem paths
+- database paths
+- SQL statements
+- internal exception details
+
+Unexpected repository/API failures must return sanitized errors.
+
+Do not silently report a workflow as successful if persisted state says otherwise.
+
+--------------------------------------------------
+10. TESTING
+--------------------------------------------------
+
+Add deterministic tests using isolated temporary SQLite databases.
+
+No internet.
+
+No external APIs.
+
+No LLM.
+
+At minimum test:
+
+1. Inspection response for successful workflow.
+2. Inspection response for failed workflow.
+3. Stage statistics calculation.
+4. Execution duration calculation.
+5. Entity count calculation.
+6. Inspection traceability summary.
+7. Inspection endpoint success.
+8. Inspection endpoint unknown agent -> 404.
+9. Inspection endpoint unknown workflow -> 404.
+10. Inspection endpoint cross-agent workflow -> 404.
+11. History status filter.
+12. History successful=true filter.
+13. History successful=false filter.
+14. History pagination.
+15. Deterministic history ordering.
+16. Existing history behavior without filters.
+17. JSON serialization.
+18. Persistence after repository re-instantiation.
+19. Existing workflow execution remains unchanged.
+20. Existing 192 tests remain passing.
+
+Do not weaken or delete existing tests.
+
+--------------------------------------------------
+11. REGRESSION VERIFICATION
+--------------------------------------------------
+
+Run:
+
+python -m pytest
+
+The entire suite must pass.
+
+Do not accept partial success.
+
+Fix only issues related to Session 017.
+
+--------------------------------------------------
+12. CONTROLLED LIVE VERIFICATION
+--------------------------------------------------
+
+After tests pass, perform a controlled local verification against:
+
+data/signalforge.db
+
+Use the existing NOVA agent if available.
+
+Verify:
+
+1. Existing persisted workflow can be retrieved.
+2. Inspection endpoint returns correct statistics.
+3. History filtering works.
+4. Ordering is deterministic.
+5. Traceability summary is preserved.
+6. No external publishing occurs.
+7. No LLM calls occur.
+8. No scheduling/background worker behavior exists.
+
+Do not modify existing production-like records unnecessarily.
+
+--------------------------------------------------
+13. ARCHITECTURAL REQUIREMENTS
+--------------------------------------------------
+
+Maintain:
+
+API
+  ->
+workflow service/repository
+  ->
+SQLite
+
+Do not put SQL inside FastAPI routes.
+
+Do not duplicate orchestration logic.
+
+Do not create a second workflow persistence mechanism.
+
+Do not change the existing workflow execution contract.
+
+--------------------------------------------------
+14. FILES
+--------------------------------------------------
+
+Create only files necessary for this subsystem.
+
+Likely modifications:
+
+backend/app/repositories/workflow_repository.py
+
+backend/app/api/workflow_schemas.py
+
+backend/app/api/agent.py
+
+backend/tests/test_workflow_observability.py
+
+backend/tests/test_workflow_inspection_api.py
+
+prompts.md
+
+Do not create unnecessary abstractions.
+
+--------------------------------------------------
+15. SAFETY CONSTRAINT
+--------------------------------------------------
+
+This session must NOT introduce:
+
+- scheduling
+- background execution
+- Celery
+- RQ
+- Redis
+- real social publishing
+- OAuth
+- LLM calls
+- frontend changes
+
+--------------------------------------------------
+16. FINAL VERIFICATION REPORT
+--------------------------------------------------
+
+After implementation report:
+
+1. Files created.
+2. Files modified.
+3. Repository changes.
+4. Inspection schema.
+5. Inspection endpoint.
+6. History filtering.
+7. Stage statistics.
+8. Duration calculation.
+9. Entity counts.
+10. Traceability behavior.
+11. Error handling.
+12. Complete pytest result.
+13. Controlled live verification.
+14. Assumptions and limitations.
+15. Code-review verification.
+16. Confirmation of zero LLM usage.
+17. Confirmation of zero real external publishing.
+18. Confirmation of zero scheduling/background workers.
+
+Update prompts.md with the complete Session 017 development record.
+
+Do NOT commit or push changes.
+
+Leave the Git state uncommitted for manual review.
+
+**Result:**
+
+Implemented workflow inspection summary endpoint and history filtering capabilities. Extended `BaseWorkflowRepository` and `SQLiteWorkflowRepository` in `app/repositories/workflow_repository.py` with `calculate_duration_seconds()`, `calculate_stage_stats()`, `extract_traceability_summary()`, and filtered `list_workflows_by_agent()`/`count_workflows_by_agent()` (supporting `status` string and `is_successful` boolean filters). Added `WorkflowStageStats` and `WorkflowInspectionResponse` Pydantic models to `app/api/workflow_schemas.py` and updated `WorkflowSummaryResponse` to include `duration_seconds` and entity counts. Added `GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection` and updated `GET /api/agent/{agent_id}/workflows` with optional `status` and `successful` query parameters in `app/api/agent.py`. Added 12 automated unit tests in `tests/test_workflow_observability.py` and `tests/test_workflow_inspection_api.py`.
+
+**Human Verification:**
+
+- Verified `GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection` returns HTTP 200 with calculated stage statistics, duration in seconds, entity counts, halted stage rationale, and concise 9-stage traceability summary.
+- Verified HTTP 404 responses for unknown agents, unknown workflow IDs, or cross-agent workflow ID mismatches.
+- Verified `GET /api/agent/{agent_id}/workflows` supports filtering by `status` (e.g. `status=NO_CONTENT`) and `successful` boolean (e.g. `successful=true` or `successful=false`).
+- Verified GET endpoints are idempotent and never create or mutate database records.
+- Executed controlled live verification script (`scratch/test_live_workflow_inspection.py`) against `data/signalforge.db`: triggered live workflow `wf-bfd8d216506ff4cc`, verified inspection endpoint response (`duration_seconds: 3.003`, `stage_stats: {'total_stages': 9, 'succeeded_stages': 2, 'skipped_stages': 7}`), and verified filtered history query results.
+- Verified complete test suite: 204 passed out of 204 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 204 items
+
+tests\test_agent_init.py .....                                           [  2%]
+tests\test_content_brief.py ................                             [ 10%]
+tests\test_database.py .....                                             [ 12%]
+tests\test_editorial_engine.py ..........                                [ 17%]
+tests\test_editorial_quality.py ....                                     [ 19%]
+tests\test_publishing.py ..................                              [ 28%]
+tests\test_research_engine.py ............                               [ 34%]
+tests\test_research_repository.py ...............                        [ 41%]
+tests\test_research_synthesis.py ................                        [ 49%]
+tests\test_research_validation.py ..............                         [ 56%]
+tests\test_research_writer.py ....................                       [ 66%]
+tests\test_topic_discovery.py ......                                     [ 69%]
+tests\test_workflow.py ....................                              [ 78%]
+tests\test_workflow_api.py ................                              [ 86%]
+tests\test_workflow_inspection_api.py ......                             [ 89%]
+tests\test_workflow_observability.py ......                              [ 92%]
+tests\test_workflow_repository.py .......                                [ 96%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 204 passed, 1 warning in 60.16s (0:01:00) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Execution Duration**: Exposed as float seconds (`duration_seconds`), calculated as `(completed_at - started_at).total_seconds()` for completed runs, or `None` for incomplete/running executions.
+- **Dry-Run Enforcement**: Dry-run publishing simulation remains strictly enabled. Zero external social media platform APIs or OAuth endpoints are connected.
+
+**Code Review Verification:**
+
+- Verified thin route handlers in FastAPI layer.
+- Verified zero raw SQL inside API route handlers.
+- Verified no HTTP logic inside repository layer.
+- Verified stable deterministic sorting (`started_at DESC, workflow_id DESC`).
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+feat: add workflow observability and inspection
+
+
+
