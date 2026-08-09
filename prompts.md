@@ -377,3 +377,5 @@ Pending.
 **Git Commit:**
 
 Pending.
+
+feat: add frontend agent API client
