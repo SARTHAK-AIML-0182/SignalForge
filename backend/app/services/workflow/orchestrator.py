@@ -93,9 +93,27 @@ def run_agent_workflow(
     def _persist_result(res: AgentWorkflowResult) -> AgentWorkflowResult:
         try:
             workflow_repo.save_workflow(res)
+            return res
         except Exception as save_err:
             logger.error(f"Failed to persist workflow {res.workflow_id}: {save_err}")
-        return res
+            if res.status != WorkflowStatus.FAILED:
+                return AgentWorkflowResult(
+                    workflow_id=res.workflow_id,
+                    agent_id=res.agent_id,
+                    status=WorkflowStatus.FAILED,
+                    started_at=res.started_at,
+                    completed_at=res.completed_at or datetime.now(timezone.utc).isoformat(),
+                    stages=res.stages,
+                    selected_topic_ids=res.selected_topic_ids,
+                    research_ids=res.research_ids,
+                    draft_ids=res.draft_ids,
+                    publication_ids=res.publication_ids,
+                    is_successful=False,
+                    halted_at_stage="persistence",
+                    rationale="Workflow execution completed, but persisting final workflow state failed.",
+                    traceability=res.traceability,
+                )
+            return res
 
     stages: List[WorkflowStageResult] = []
     selected_topic_ids: List[str] = []
@@ -124,202 +142,233 @@ def run_agent_workflow(
         )
     )
 
-    # ------------------------------------------------------------------
-    # STAGE 1 — TOPIC DISCOVERY
-    # ------------------------------------------------------------------
-    s1_start = datetime.now(timezone.utc).isoformat()
     try:
-        discovered_topics = discover_topics(
-            agent_id=agent_id,
-            repo=topic_repo,
-            feeds=feeds,
-            http_client=http_client,
-        )
-        s1_end = datetime.now(timezone.utc).isoformat()
-
-        disc_topic_ids = [t.topic_id for t in discovered_topics]
-        stages.append(
-            WorkflowStageResult(
-                stage_name="topic_discovery",
-                status=WorkflowStageStatus.SUCCEEDED,
-                started_at=s1_start,
-                completed_at=s1_end,
-                is_successful=True,
-                rationale=f"Successfully discovered {len(discovered_topics)} topics.",
-                entity_ids={"topic_ids": disc_topic_ids},
-                metadata={"discovered_count": len(discovered_topics)},
-            )
-        )
-    except Exception as exc:
-        s1_end = datetime.now(timezone.utc).isoformat()
-        logger.error(f"Topic discovery failed completely: {exc}")
-        stages.append(
-            WorkflowStageResult(
-                stage_name="topic_discovery",
-                status=WorkflowStageStatus.FAILED,
-                started_at=s1_start,
-                completed_at=s1_end,
-                is_successful=False,
-                rationale=f"Topic discovery failed with exception: {exc}",
-                entity_ids={},
-            )
-        )
-        completed_at = datetime.now(timezone.utc).isoformat()
-        return _persist_result(
-            AgentWorkflowResult(
-                workflow_id=workflow_id,
+        # ------------------------------------------------------------------
+        # STAGE 1 — TOPIC DISCOVERY
+        # ------------------------------------------------------------------
+        s1_start = datetime.now(timezone.utc).isoformat()
+        try:
+            discovered_topics = discover_topics(
                 agent_id=agent_id,
-                status=WorkflowStatus.FAILED,
-                started_at=started_at,
-                completed_at=completed_at,
-                stages=stages,
-                selected_topic_ids=[],
-                research_ids=[],
-                draft_ids=[],
-                publication_ids=[],
-                is_successful=False,
-                halted_at_stage="topic_discovery",
-                rationale="Workflow halted: Topic discovery failed completely.",
-                traceability={},
+                repo=topic_repo,
+                feeds=feeds,
+                http_client=http_client,
             )
-        )
+            s1_end = datetime.now(timezone.utc).isoformat()
 
-    # ------------------------------------------------------------------
-    # STAGE 2 — EDITORIAL EVALUATION
-    # ------------------------------------------------------------------
-    s2_start = datetime.now(timezone.utc).isoformat()
-    try:
-        editorial_decisions = evaluate_agent_topics(
-            agent_id=agent_id,
-            repo=topic_repo,
-            threshold=config.editorial_threshold,
-        )
-        s2_end = datetime.now(timezone.utc).isoformat()
-
-        selected_decisions = [d for d in editorial_decisions if d.decision == "selected"]
-        selected_topic_ids = [d.topic_id for d in selected_decisions]
-
-        stages.append(
-            WorkflowStageResult(
-                stage_name="editorial_evaluation",
-                status=WorkflowStageStatus.SUCCEEDED,
-                started_at=s2_start,
-                completed_at=s2_end,
-                is_successful=True,
-                rationale=f"Evaluated {len(editorial_decisions)} topics. Selected {len(selected_decisions)} topics.",
-                entity_ids={"selected_topic_ids": selected_topic_ids},
-                metadata={
-                    "total_evaluated": len(editorial_decisions),
-                    "selected_count": len(selected_decisions),
-                },
-            )
-        )
-    except Exception as exc:
-        s2_end = datetime.now(timezone.utc).isoformat()
-        logger.error(f"Editorial evaluation failed: {exc}")
-        stages.append(
-            WorkflowStageResult(
-                stage_name="editorial_evaluation",
-                status=WorkflowStageStatus.FAILED,
-                started_at=s2_start,
-                completed_at=s2_end,
-                is_successful=False,
-                rationale=f"Editorial evaluation failed with exception: {exc}",
-                entity_ids={},
-            )
-        )
-        completed_at = datetime.now(timezone.utc).isoformat()
-        return _persist_result(
-            AgentWorkflowResult(
-                workflow_id=workflow_id,
-                agent_id=agent_id,
-                status=WorkflowStatus.FAILED,
-                started_at=started_at,
-                completed_at=completed_at,
-                stages=stages,
-                selected_topic_ids=[],
-                research_ids=[],
-                draft_ids=[],
-                publication_ids=[],
-                is_successful=False,
-                halted_at_stage="editorial_evaluation",
-                rationale="Workflow halted: Editorial evaluation failed.",
-                traceability={},
-            )
-        )
-
-    # Early exit if zero topics passed editorial selection
-    if not selected_topic_ids:
-        s_now = datetime.now(timezone.utc).isoformat()
-        for st_name in [
-            "research",
-            "research_validation",
-            "research_synthesis",
-            "content_brief",
-            "draft_generation",
-            "publishability_check",
-            "dry_run_publication",
-        ]:
+            disc_topic_ids = [t.topic_id for t in discovered_topics]
             stages.append(
                 WorkflowStageResult(
-                    stage_name=st_name,
-                    status=WorkflowStageStatus.SKIPPED,
-                    started_at=s_now,
-                    completed_at=s_now,
+                    stage_name="topic_discovery",
+                    status=WorkflowStageStatus.SUCCEEDED,
+                    started_at=s1_start,
+                    completed_at=s1_end,
                     is_successful=True,
-                    rationale="Skipped because no topic passed editorial selection.",
+                    rationale=f"Successfully discovered {len(discovered_topics)} topics.",
+                    entity_ids={"topic_ids": disc_topic_ids},
+                    metadata={"discovered_count": len(discovered_topics)},
+                )
+            )
+        except Exception as exc:
+            s1_end = datetime.now(timezone.utc).isoformat()
+            logger.error(f"Topic discovery failed completely: {exc}")
+            stages.append(
+                WorkflowStageResult(
+                    stage_name="topic_discovery",
+                    status=WorkflowStageStatus.FAILED,
+                    started_at=s1_start,
+                    completed_at=s1_end,
+                    is_successful=False,
+                    rationale=f"Topic discovery failed with exception: {type(exc).__name__}",
                     entity_ids={},
                 )
             )
-
-        completed_at = datetime.now(timezone.utc).isoformat()
-        return _persist_result(
-            AgentWorkflowResult(
-                workflow_id=workflow_id,
-                agent_id=agent_id,
-                status=WorkflowStatus.NO_CONTENT,
-                started_at=started_at,
-                completed_at=completed_at,
-                stages=stages,
-                selected_topic_ids=[],
-                research_ids=[],
-                draft_ids=[],
-                publication_ids=[],
-                is_successful=True,
-                halted_at_stage=None,
-                rationale="NO CONTENT: Workflow completed cleanly, but zero topics met the editorial selection threshold.",
-                traceability={},
+            completed_at = datetime.now(timezone.utc).isoformat()
+            return _persist_result(
+                AgentWorkflowResult(
+                    workflow_id=workflow_id,
+                    agent_id=agent_id,
+                    status=WorkflowStatus.FAILED,
+                    started_at=started_at,
+                    completed_at=completed_at,
+                    stages=stages,
+                    selected_topic_ids=[],
+                    research_ids=[],
+                    draft_ids=[],
+                    publication_ids=[],
+                    is_successful=False,
+                    halted_at_stage="topic_discovery",
+                    rationale="Workflow halted: Topic discovery failed completely.",
+                    traceability={},
+                )
             )
-        )
 
-    # ------------------------------------------------------------------
-    # STAGES 3 TO 9 — PER-TOPIC PIPELINE (WITH FAILURE ISOLATION)
-    # ------------------------------------------------------------------
-    topics_to_process = selected_topic_ids[: config.max_topics]
-    successful_publications = 0
-    blocked_publications = 0
-
-    for topic_id in topics_to_process:
-        topic_data = topic_repo.get_topic(topic_id)
-        if not topic_data:
-            continue
-
-        topic_trace: Dict[str, Any] = {"topic_id": topic_id, "title": topic_data.title}
-        traceability[topic_id] = topic_trace
-
-        # STAGE 3 — Research
-        s3_start = datetime.now(timezone.utc).isoformat()
+        # ------------------------------------------------------------------
+        # STAGE 2 — EDITORIAL EVALUATION
+        # ------------------------------------------------------------------
+        s2_start = datetime.now(timezone.utc).isoformat()
         try:
-            res_result = research_topic(
-                topic=topic_data,
-                research_repo=research_repo,
-                evidence_repo=evidence_repo,
-                http_client=http_client,
-                max_sources=config.max_research_items,
+            editorial_decisions = evaluate_agent_topics(
+                agent_id=agent_id,
+                repo=topic_repo,
+                threshold=config.editorial_threshold,
             )
-            s3_end = datetime.now(timezone.utc).isoformat()
+            s2_end = datetime.now(timezone.utc).isoformat()
 
-            if res_result.status == "failed" or res_result.evidence_count == 0:
+            selected_decisions = [d for d in editorial_decisions if d.decision == "selected"]
+            selected_topic_ids = [d.topic_id for d in selected_decisions]
+
+            stages.append(
+                WorkflowStageResult(
+                    stage_name="editorial_evaluation",
+                    status=WorkflowStageStatus.SUCCEEDED,
+                    started_at=s2_start,
+                    completed_at=s2_end,
+                    is_successful=True,
+                    rationale=f"Evaluated {len(editorial_decisions)} topics. Selected {len(selected_decisions)} topics.",
+                    entity_ids={"selected_topic_ids": selected_topic_ids},
+                    metadata={
+                        "total_evaluated": len(editorial_decisions),
+                        "selected_count": len(selected_decisions),
+                    },
+                )
+            )
+        except Exception as exc:
+            s2_end = datetime.now(timezone.utc).isoformat()
+            logger.error(f"Editorial evaluation failed: {exc}")
+            stages.append(
+                WorkflowStageResult(
+                    stage_name="editorial_evaluation",
+                    status=WorkflowStageStatus.FAILED,
+                    started_at=s2_start,
+                    completed_at=s2_end,
+                    is_successful=False,
+                    rationale=f"Editorial evaluation failed with exception: {type(exc).__name__}",
+                    entity_ids={},
+                )
+            )
+            completed_at = datetime.now(timezone.utc).isoformat()
+            return _persist_result(
+                AgentWorkflowResult(
+                    workflow_id=workflow_id,
+                    agent_id=agent_id,
+                    status=WorkflowStatus.FAILED,
+                    started_at=started_at,
+                    completed_at=completed_at,
+                    stages=stages,
+                    selected_topic_ids=[],
+                    research_ids=[],
+                    draft_ids=[],
+                    publication_ids=[],
+                    is_successful=False,
+                    halted_at_stage="editorial_evaluation",
+                    rationale="Workflow halted: Editorial evaluation failed.",
+                    traceability={},
+                )
+            )
+
+        # Early exit if zero topics passed editorial selection
+        if not selected_topic_ids:
+            s_now = datetime.now(timezone.utc).isoformat()
+            for st_name in [
+                "research",
+                "research_validation",
+                "research_synthesis",
+                "content_brief",
+                "draft_generation",
+                "publishability_check",
+                "dry_run_publication",
+            ]:
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=st_name,
+                        status=WorkflowStageStatus.SKIPPED,
+                        started_at=s_now,
+                        completed_at=s_now,
+                        is_successful=True,
+                        rationale="Skipped because no topic passed editorial selection.",
+                        entity_ids={},
+                    )
+                )
+
+            completed_at = datetime.now(timezone.utc).isoformat()
+            return _persist_result(
+                AgentWorkflowResult(
+                    workflow_id=workflow_id,
+                    agent_id=agent_id,
+                    status=WorkflowStatus.NO_CONTENT,
+                    started_at=started_at,
+                    completed_at=completed_at,
+                    stages=stages,
+                    selected_topic_ids=[],
+                    research_ids=[],
+                    draft_ids=[],
+                    publication_ids=[],
+                    is_successful=True,
+                    halted_at_stage=None,
+                    rationale="NO CONTENT: Workflow completed cleanly, but zero topics met the editorial selection threshold.",
+                    traceability={},
+                )
+            )
+
+        # ------------------------------------------------------------------
+        # STAGES 3 TO 9 — PER-TOPIC PIPELINE (WITH FAILURE ISOLATION)
+        # ------------------------------------------------------------------
+        topics_to_process = selected_topic_ids[: config.max_topics]
+        successful_publications = 0
+        blocked_publications = 0
+
+        for topic_id in topics_to_process:
+            topic_data = topic_repo.get_topic(topic_id)
+            if not topic_data:
+                continue
+
+            topic_trace: Dict[str, Any] = {"topic_id": topic_id, "title": topic_data.title}
+            traceability[topic_id] = topic_trace
+
+            # STAGE 3 — Research
+            s3_start = datetime.now(timezone.utc).isoformat()
+            try:
+                res_result = research_topic(
+                    topic=topic_data,
+                    research_repo=research_repo,
+                    evidence_repo=evidence_repo,
+                    http_client=http_client,
+                    max_sources=config.max_research_items,
+                )
+                s3_end = datetime.now(timezone.utc).isoformat()
+
+                if res_result.status == "failed" or res_result.evidence_count == 0:
+                    stages.append(
+                        WorkflowStageResult(
+                            stage_name=f"research_{topic_id}",
+                            status=WorkflowStageStatus.FAILED,
+                            started_at=s3_start,
+                            completed_at=s3_end,
+                            is_successful=False,
+                            rationale=f"Research failed or collected zero evidence for topic '{topic_id}'.",
+                            entity_ids={"topic_ids": [topic_id]},
+                        )
+                    )
+                    topic_trace["research_status"] = "failed"
+                    continue
+
+                research_ids.append(res_result.research_id)
+                topic_trace["research_id"] = res_result.research_id
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"research_{topic_id}",
+                        status=WorkflowStageStatus.SUCCEEDED,
+                        started_at=s3_start,
+                        completed_at=s3_end,
+                        is_successful=True,
+                        rationale=f"Gathered {res_result.evidence_count} evidence items (confidence: {res_result.confidence:.2f}).",
+                        entity_ids={"topic_ids": [topic_id], "research_ids": [res_result.research_id]},
+                    )
+                )
+            except Exception as exc:
+                s3_end = datetime.now(timezone.utc).isoformat()
+                logger.error(f"Research failed for topic {topic_id}: {exc}")
                 stages.append(
                     WorkflowStageResult(
                         stage_name=f"research_{topic_id}",
@@ -327,359 +376,357 @@ def run_agent_workflow(
                         started_at=s3_start,
                         completed_at=s3_end,
                         is_successful=False,
-                        rationale=f"Research failed or collected zero evidence for topic '{topic_id}'.",
+                        rationale=f"Research raised exception: {type(exc).__name__}",
                         entity_ids={"topic_ids": [topic_id]},
                     )
                 )
-                topic_trace["research_status"] = "failed"
+                topic_trace["research_status"] = "exception"
                 continue
 
-            research_ids.append(res_result.research_id)
-            topic_trace["research_id"] = res_result.research_id
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"research_{topic_id}",
-                    status=WorkflowStageStatus.SUCCEEDED,
-                    started_at=s3_start,
-                    completed_at=s3_end,
-                    is_successful=True,
-                    rationale=f"Gathered {res_result.evidence_count} evidence items (confidence: {res_result.confidence:.2f}).",
-                    entity_ids={"topic_ids": [topic_id], "research_ids": [res_result.research_id]},
+            # STAGE 4 — Research Validation
+            s4_start = datetime.now(timezone.utc).isoformat()
+            try:
+                val_result = validate_research(
+                    research_id=res_result.research_id,
+                    research_repo=research_repo,
+                    evidence_repo=evidence_repo,
+                    topic_repo=topic_repo,
+                    threshold=config.validation_threshold,
                 )
-            )
-        except Exception as exc:
-            s3_end = datetime.now(timezone.utc).isoformat()
-            logger.error(f"Research failed for topic {topic_id}: {exc}")
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"research_{topic_id}",
-                    status=WorkflowStageStatus.FAILED,
-                    started_at=s3_start,
-                    completed_at=s3_end,
-                    is_successful=False,
-                    rationale=f"Research raised exception: {exc}",
-                    entity_ids={"topic_ids": [topic_id]},
-                )
-            )
-            topic_trace["research_status"] = "exception"
-            continue
+                s4_end = datetime.now(timezone.utc).isoformat()
 
-        # STAGE 4 — Research Validation
-        s4_start = datetime.now(timezone.utc).isoformat()
-        try:
-            val_result = validate_research(
-                research_id=res_result.research_id,
-                research_repo=research_repo,
-                evidence_repo=evidence_repo,
-                topic_repo=topic_repo,
-                threshold=config.validation_threshold,
-            )
-            s4_end = datetime.now(timezone.utc).isoformat()
+                topic_trace["validation_classification"] = val_result.quality_classification
+                topic_trace["validation_score"] = val_result.overall_score
 
-            topic_trace["validation_classification"] = val_result.quality_classification
-            topic_trace["validation_score"] = val_result.overall_score
+                if not val_result.is_usable:
+                    stages.append(
+                        WorkflowStageResult(
+                            stage_name=f"research_validation_{topic_id}",
+                            status=WorkflowStageStatus.BLOCKED,
+                            started_at=s4_start,
+                            completed_at=s4_end,
+                            is_successful=False,
+                            rationale=f"Validation failed (classification: {val_result.quality_classification}, score: {val_result.overall_score:.2f}). Downstream pipeline blocked.",
+                            entity_ids={"research_ids": [res_result.research_id]},
+                        )
+                    )
+                    continue
 
-            if not val_result.is_usable:
                 stages.append(
                     WorkflowStageResult(
                         stage_name=f"research_validation_{topic_id}",
-                        status=WorkflowStageStatus.BLOCKED,
+                        status=WorkflowStageStatus.SUCCEEDED,
+                        started_at=s4_start,
+                        completed_at=s4_end,
+                        is_successful=True,
+                        rationale=val_result.rationale,
+                        entity_ids={"research_ids": [res_result.research_id]},
+                    )
+                )
+            except Exception as exc:
+                s4_end = datetime.now(timezone.utc).isoformat()
+                logger.error(f"Validation failed for research {res_result.research_id}: {exc}")
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"research_validation_{topic_id}",
+                        status=WorkflowStageStatus.FAILED,
                         started_at=s4_start,
                         completed_at=s4_end,
                         is_successful=False,
-                        rationale=f"Validation failed (classification: {val_result.quality_classification}, score: {val_result.overall_score:.2f}). Downstream pipeline blocked.",
+                        rationale=f"Validation raised exception: {type(exc).__name__}",
                         entity_ids={"research_ids": [res_result.research_id]},
                     )
                 )
                 continue
 
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"research_validation_{topic_id}",
-                    status=WorkflowStageStatus.SUCCEEDED,
-                    started_at=s4_start,
-                    completed_at=s4_end,
-                    is_successful=True,
-                    rationale=val_result.rationale,
-                    entity_ids={"research_ids": [res_result.research_id]},
+            # STAGE 5 — Research Synthesis
+            s5_start = datetime.now(timezone.utc).isoformat()
+            try:
+                synth_result = synthesize_research(
+                    research_id=res_result.research_id,
+                    research_repo=research_repo,
+                    evidence_repo=evidence_repo,
+                    topic_repo=topic_repo,
+                    validation_threshold=config.validation_threshold,
                 )
-            )
-        except Exception as exc:
-            s4_end = datetime.now(timezone.utc).isoformat()
-            logger.error(f"Validation failed for research {res_result.research_id}: {exc}")
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"research_validation_{topic_id}",
-                    status=WorkflowStageStatus.FAILED,
-                    started_at=s4_start,
-                    completed_at=s4_end,
-                    is_successful=False,
-                    rationale=f"Validation raised exception: {exc}",
-                    entity_ids={"research_ids": [res_result.research_id]},
-                )
-            )
-            continue
+                s5_end = datetime.now(timezone.utc).isoformat()
 
-        # STAGE 5 — Research Synthesis
-        s5_start = datetime.now(timezone.utc).isoformat()
-        try:
-            synth_result = synthesize_research(
-                research_id=res_result.research_id,
-                research_repo=research_repo,
-                evidence_repo=evidence_repo,
-                topic_repo=topic_repo,
-                validation_threshold=config.validation_threshold,
-            )
-            s5_end = datetime.now(timezone.utc).isoformat()
+                finding_ids = [f.finding_id for f in synth_result.findings]
+                topic_trace["finding_ids"] = finding_ids
 
-            finding_ids = [f.finding_id for f in synth_result.findings]
-            topic_trace["finding_ids"] = finding_ids
-
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"research_synthesis_{topic_id}",
-                    status=WorkflowStageStatus.SUCCEEDED,
-                    started_at=s5_start,
-                    completed_at=s5_end,
-                    is_successful=True,
-                    rationale=f"Synthesized {len(synth_result.findings)} findings across {synth_result.source_diversity_count} domain(s).",
-                    entity_ids={"finding_ids": finding_ids},
-                )
-            )
-        except Exception as exc:
-            s5_end = datetime.now(timezone.utc).isoformat()
-            logger.error(f"Synthesis failed for research {res_result.research_id}: {exc}")
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"research_synthesis_{topic_id}",
-                    status=WorkflowStageStatus.FAILED,
-                    started_at=s5_start,
-                    completed_at=s5_end,
-                    is_successful=False,
-                    rationale=f"Synthesis raised exception: {exc}",
-                    entity_ids={"research_ids": [res_result.research_id]},
-                )
-            )
-            continue
-
-        # STAGE 6 — Content Brief
-        s6_start = datetime.now(timezone.utc).isoformat()
-        try:
-            brief_result = build_content_brief(
-                research_id=res_result.research_id,
-                research_repo=research_repo,
-                evidence_repo=evidence_repo,
-                topic_repo=topic_repo,
-                agent_repo=agent_repo,
-                validation_threshold=config.validation_threshold,
-            )
-            s6_end = datetime.now(timezone.utc).isoformat()
-
-            claim_ids = [c.claim_id for c in brief_result.claims]
-            topic_trace["claim_ids"] = claim_ids
-
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"content_brief_{topic_id}",
-                    status=WorkflowStageStatus.SUCCEEDED,
-                    started_at=s6_start,
-                    completed_at=s6_end,
-                    is_successful=True,
-                    rationale=f"Built content brief with {len(brief_result.claims)} supported claims and 6 writing constraints.",
-                    entity_ids={"claim_ids": claim_ids},
-                )
-            )
-        except Exception as exc:
-            s6_end = datetime.now(timezone.utc).isoformat()
-            logger.error(f"Brief generation failed for research {res_result.research_id}: {exc}")
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"content_brief_{topic_id}",
-                    status=WorkflowStageStatus.FAILED,
-                    started_at=s6_start,
-                    completed_at=s6_end,
-                    is_successful=False,
-                    rationale=f"Brief generation raised exception: {exc}",
-                    entity_ids={"research_ids": [res_result.research_id]},
-                )
-            )
-            continue
-
-        # STAGE 7 — Draft Generation
-        s7_start = datetime.now(timezone.utc).isoformat()
-        try:
-            draft = generate_draft(brief_result)
-            s7_end = datetime.now(timezone.utc).isoformat()
-
-            draft_ids.append(draft.draft_id)
-            topic_trace["draft_id"] = draft.draft_id
-            topic_trace["is_publishable"] = draft.is_publishable
-
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"draft_generation_{topic_id}",
-                    status=WorkflowStageStatus.SUCCEEDED,
-                    started_at=s7_start,
-                    completed_at=s7_end,
-                    is_successful=True,
-                    rationale=f"Generated draft '{draft.draft_id}' with {len(draft.sections)} sections (is_publishable={draft.is_publishable}).",
-                    entity_ids={"draft_ids": [draft.draft_id]},
-                )
-            )
-        except Exception as exc:
-            s7_end = datetime.now(timezone.utc).isoformat()
-            logger.error(f"Draft generation failed for brief on research {res_result.research_id}: {exc}")
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"draft_generation_{topic_id}",
-                    status=WorkflowStageStatus.FAILED,
-                    started_at=s7_start,
-                    completed_at=s7_end,
-                    is_successful=False,
-                    rationale=f"Draft generation raised exception: {exc}",
-                    entity_ids={"research_ids": [res_result.research_id]},
-                )
-            )
-            continue
-
-        # STAGE 8 — Publishability Check
-        s8_start = datetime.now(timezone.utc).isoformat()
-        s8_end = datetime.now(timezone.utc).isoformat()
-        if not draft.is_publishable:
-            blocked_publications += 1
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"publishability_check_{topic_id}",
-                    status=WorkflowStageStatus.BLOCKED,
-                    started_at=s8_start,
-                    completed_at=s8_end,
-                    is_successful=False,
-                    rationale=f"Draft '{draft.draft_id}' is marked unpublishable (warnings: {', '.join(draft.warnings)}).",
-                    entity_ids={"draft_ids": [draft.draft_id]},
-                )
-            )
-            continue
-
-        stages.append(
-            WorkflowStageResult(
-                stage_name=f"publishability_check_{topic_id}",
-                status=WorkflowStageStatus.SUCCEEDED,
-                started_at=s8_start,
-                completed_at=s8_end,
-                is_successful=True,
-                rationale=f"Draft '{draft.draft_id}' passed publishability gate.",
-                entity_ids={"draft_ids": [draft.draft_id]},
-            )
-        )
-
-        # STAGE 9 — Dry-Run Publication
-        s9_start = datetime.now(timezone.utc).isoformat()
-        if not config.enable_dry_run_publication:
-            s9_end = datetime.now(timezone.utc).isoformat()
-            stages.append(
-                WorkflowStageResult(
-                    stage_name=f"dry_run_publication_{topic_id}",
-                    status=WorkflowStageStatus.SKIPPED,
-                    started_at=s9_start,
-                    completed_at=s9_end,
-                    is_successful=True,
-                    rationale="Dry-run publication is disabled in workflow configuration.",
-                    entity_ids={"draft_ids": [draft.draft_id]},
-                )
-            )
-            continue
-
-        try:
-            pub_result = publish_draft(draft, adapter=publishing_adapter, dry_run=True)
-            s9_end = datetime.now(timezone.utc).isoformat()
-
-            publication_ids.append(pub_result.publication_id)
-            topic_trace["publication_id"] = pub_result.publication_id
-            topic_trace["publication_status"] = pub_result.status
-
-            if pub_result.is_successful:
-                successful_publications += 1
                 stages.append(
                     WorkflowStageResult(
-                        stage_name=f"dry_run_publication_{topic_id}",
+                        stage_name=f"research_synthesis_{topic_id}",
                         status=WorkflowStageStatus.SUCCEEDED,
-                        started_at=s9_start,
-                        completed_at=s9_end,
+                        started_at=s5_start,
+                        completed_at=s5_end,
                         is_successful=True,
-                        rationale=pub_result.rationale,
-                        entity_ids={
-                            "draft_ids": [draft.draft_id],
-                            "publication_ids": [pub_result.publication_id],
-                        },
+                        rationale=f"Synthesized {len(synth_result.findings)} findings across {synth_result.source_diversity_count} domain(s).",
+                        entity_ids={"finding_ids": finding_ids},
                     )
                 )
-            else:
+            except Exception as exc:
+                s5_end = datetime.now(timezone.utc).isoformat()
+                logger.error(f"Synthesis failed for research {res_result.research_id}: {exc}")
                 stages.append(
                     WorkflowStageResult(
-                        stage_name=f"dry_run_publication_{topic_id}",
-                        status=WorkflowStageStatus.BLOCKED,
-                        started_at=s9_start,
-                        completed_at=s9_end,
+                        stage_name=f"research_synthesis_{topic_id}",
+                        status=WorkflowStageStatus.FAILED,
+                        started_at=s5_start,
+                        completed_at=s5_end,
                         is_successful=False,
-                        rationale=pub_result.rationale,
+                        rationale=f"Synthesis raised exception: {type(exc).__name__}",
+                        entity_ids={"research_ids": [res_result.research_id]},
+                    )
+                )
+                continue
+
+            # STAGE 6 — Content Brief
+            s6_start = datetime.now(timezone.utc).isoformat()
+            try:
+                brief_result = build_content_brief(
+                    research_id=res_result.research_id,
+                    research_repo=research_repo,
+                    evidence_repo=evidence_repo,
+                    topic_repo=topic_repo,
+                    agent_repo=agent_repo,
+                    validation_threshold=config.validation_threshold,
+                )
+                s6_end = datetime.now(timezone.utc).isoformat()
+
+                claim_ids = [c.claim_id for c in brief_result.claims]
+                topic_trace["claim_ids"] = claim_ids
+
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"content_brief_{topic_id}",
+                        status=WorkflowStageStatus.SUCCEEDED,
+                        started_at=s6_start,
+                        completed_at=s6_end,
+                        is_successful=True,
+                        rationale=f"Built content brief with {len(brief_result.claims)} supported claims and 6 writing constraints.",
+                        entity_ids={"claim_ids": claim_ids},
+                    )
+                )
+            except Exception as exc:
+                s6_end = datetime.now(timezone.utc).isoformat()
+                logger.error(f"Brief generation failed for research {res_result.research_id}: {exc}")
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"content_brief_{topic_id}",
+                        status=WorkflowStageStatus.FAILED,
+                        started_at=s6_start,
+                        completed_at=s6_end,
+                        is_successful=False,
+                        rationale=f"Brief generation raised exception: {type(exc).__name__}",
+                        entity_ids={"research_ids": [res_result.research_id]},
+                    )
+                )
+                continue
+
+            # STAGE 7 — Draft Generation
+            s7_start = datetime.now(timezone.utc).isoformat()
+            try:
+                draft = generate_draft(brief_result)
+                s7_end = datetime.now(timezone.utc).isoformat()
+
+                draft_ids.append(draft.draft_id)
+                topic_trace["draft_id"] = draft.draft_id
+                topic_trace["is_publishable"] = draft.is_publishable
+
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"draft_generation_{topic_id}",
+                        status=WorkflowStageStatus.SUCCEEDED,
+                        started_at=s7_start,
+                        completed_at=s7_end,
+                        is_successful=True,
+                        rationale=f"Generated draft '{draft.draft_id}' with {len(draft.sections)} sections (is_publishable={draft.is_publishable}).",
                         entity_ids={"draft_ids": [draft.draft_id]},
                     )
                 )
-        except Exception as exc:
-            s9_end = datetime.now(timezone.utc).isoformat()
-            logger.error(f"Publication simulation failed for draft {draft.draft_id}: {exc}")
+            except Exception as exc:
+                s7_end = datetime.now(timezone.utc).isoformat()
+                logger.error(f"Draft generation failed for brief on research {res_result.research_id}: {exc}")
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"draft_generation_{topic_id}",
+                        status=WorkflowStageStatus.FAILED,
+                        started_at=s7_start,
+                        completed_at=s7_end,
+                        is_successful=False,
+                        rationale=f"Draft generation raised exception: {type(exc).__name__}",
+                        entity_ids={"research_ids": [res_result.research_id]},
+                    )
+                )
+                continue
+
+            # STAGE 8 — Publishability Check
+            s8_start = datetime.now(timezone.utc).isoformat()
+            s8_end = datetime.now(timezone.utc).isoformat()
+            if not draft.is_publishable:
+                blocked_publications += 1
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"publishability_check_{topic_id}",
+                        status=WorkflowStageStatus.BLOCKED,
+                        started_at=s8_start,
+                        completed_at=s8_end,
+                        is_successful=False,
+                        rationale=f"Draft '{draft.draft_id}' is marked unpublishable (warnings: {', '.join(draft.warnings)}).",
+                        entity_ids={"draft_ids": [draft.draft_id]},
+                    )
+                )
+                continue
+
             stages.append(
                 WorkflowStageResult(
-                    stage_name=f"dry_run_publication_{topic_id}",
-                    status=WorkflowStageStatus.FAILED,
-                    started_at=s9_start,
-                    completed_at=s9_end,
-                    is_successful=False,
-                    rationale=f"Publication simulation raised exception: {exc}",
+                    stage_name=f"publishability_check_{topic_id}",
+                    status=WorkflowStageStatus.SUCCEEDED,
+                    started_at=s8_start,
+                    completed_at=s8_end,
+                    is_successful=True,
+                    rationale=f"Draft '{draft.draft_id}' passed publishability gate.",
                     entity_ids={"draft_ids": [draft.draft_id]},
                 )
             )
 
-    # Determine overall workflow status
-    total_selected = len(topics_to_process)
-    if successful_publications == total_selected and total_selected > 0:
-        overall_status = WorkflowStatus.SUCCESS
-        workflow_rationale = (
-            f"WORKFLOW SUCCESS: All {total_selected} selected topic(s) successfully executed "
-            f"through all 9 stages and completed dry-run publication."
-        )
-    elif successful_publications > 0:
-        overall_status = WorkflowStatus.PARTIAL_SUCCESS
-        workflow_rationale = (
-            f"WORKFLOW PARTIAL SUCCESS: {successful_publications} of {total_selected} selected topic(s) "
-            f"successfully reached dry-run publication."
-        )
-    elif total_selected > 0:
-        overall_status = WorkflowStatus.PARTIAL_SUCCESS if (research_ids or draft_ids) else WorkflowStatus.NO_CONTENT
-        workflow_rationale = (
-            f"WORKFLOW COMPLETED (NO PUBLISHABLE CONTENT): Processed {total_selected} topic(s), but zero "
-            f"topics reached final publication ({blocked_publications} blocked/unpublishable)."
-        )
-    else:
-        overall_status = WorkflowStatus.NO_CONTENT
-        workflow_rationale = "WORKFLOW NO CONTENT: Zero topics selected for processing."
+            # STAGE 9 — Dry-Run Publication
+            s9_start = datetime.now(timezone.utc).isoformat()
+            if not config.enable_dry_run_publication:
+                s9_end = datetime.now(timezone.utc).isoformat()
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"dry_run_publication_{topic_id}",
+                        status=WorkflowStageStatus.SKIPPED,
+                        started_at=s9_start,
+                        completed_at=s9_end,
+                        is_successful=True,
+                        rationale="Dry-run publication is disabled in workflow configuration.",
+                        entity_ids={"draft_ids": [draft.draft_id]},
+                    )
+                )
+                continue
 
-    completed_at = datetime.now(timezone.utc).isoformat()
-    return _persist_result(
-        AgentWorkflowResult(
+            try:
+                pub_result = publish_draft(draft, adapter=publishing_adapter, dry_run=True)
+                s9_end = datetime.now(timezone.utc).isoformat()
+
+                publication_ids.append(pub_result.publication_id)
+                topic_trace["publication_id"] = pub_result.publication_id
+                topic_trace["publication_status"] = pub_result.status
+
+                if pub_result.is_successful:
+                    successful_publications += 1
+                    stages.append(
+                        WorkflowStageResult(
+                            stage_name=f"dry_run_publication_{topic_id}",
+                            status=WorkflowStageStatus.SUCCEEDED,
+                            started_at=s9_start,
+                            completed_at=s9_end,
+                            is_successful=True,
+                            rationale=pub_result.rationale,
+                            entity_ids={
+                                "draft_ids": [draft.draft_id],
+                                "publication_ids": [pub_result.publication_id],
+                            },
+                        )
+                    )
+                else:
+                    stages.append(
+                        WorkflowStageResult(
+                            stage_name=f"dry_run_publication_{topic_id}",
+                            status=WorkflowStageStatus.BLOCKED,
+                            started_at=s9_start,
+                            completed_at=s9_end,
+                            is_successful=False,
+                            rationale=pub_result.rationale,
+                            entity_ids={"draft_ids": [draft.draft_id]},
+                        )
+                    )
+            except Exception as exc:
+                s9_end = datetime.now(timezone.utc).isoformat()
+                logger.error(f"Publication simulation failed for draft {draft.draft_id}: {exc}")
+                stages.append(
+                    WorkflowStageResult(
+                        stage_name=f"dry_run_publication_{topic_id}",
+                        status=WorkflowStageStatus.FAILED,
+                        started_at=s9_start,
+                        completed_at=s9_end,
+                        is_successful=False,
+                        rationale=f"Publication simulation raised exception: {type(exc).__name__}",
+                        entity_ids={"draft_ids": [draft.draft_id]},
+                    )
+                )
+
+        # Determine overall workflow status
+        total_selected = len(topics_to_process)
+        has_failed_stages = any(st.status == WorkflowStageStatus.FAILED for st in stages)
+        first_failed_stage = next((st.stage_name for st in stages if st.status == WorkflowStageStatus.FAILED), None)
+
+        if successful_publications == total_selected and total_selected > 0 and not has_failed_stages:
+            overall_status = WorkflowStatus.SUCCESS
+            workflow_rationale = (
+                f"WORKFLOW SUCCESS: All {total_selected} selected topic(s) successfully executed "
+                f"through all 9 stages and completed dry-run publication."
+            )
+        elif successful_publications > 0:
+            overall_status = WorkflowStatus.PARTIAL_SUCCESS
+            workflow_rationale = (
+                f"WORKFLOW PARTIAL SUCCESS: {successful_publications} of {total_selected} selected topic(s) "
+                f"successfully reached dry-run publication."
+            )
+        elif has_failed_stages:
+            overall_status = WorkflowStatus.FAILED
+            workflow_rationale = f"WORKFLOW FAILED: Halted due to stage failure in '{first_failed_stage}'."
+        elif total_selected > 0:
+            overall_status = WorkflowStatus.PARTIAL_SUCCESS if (research_ids or draft_ids) else WorkflowStatus.NO_CONTENT
+            workflow_rationale = (
+                f"WORKFLOW COMPLETED (NO PUBLISHABLE CONTENT): Processed {total_selected} topic(s), but zero "
+                f"topics reached final publication ({blocked_publications} blocked/unpublishable)."
+            )
+        else:
+            overall_status = WorkflowStatus.NO_CONTENT
+            workflow_rationale = "WORKFLOW NO CONTENT: Zero topics selected for processing."
+
+        completed_at = datetime.now(timezone.utc).isoformat()
+        return _persist_result(
+            AgentWorkflowResult(
+                workflow_id=workflow_id,
+                agent_id=agent_id,
+                status=overall_status,
+                started_at=started_at,
+                completed_at=completed_at,
+                stages=stages,
+                selected_topic_ids=selected_topic_ids,
+                research_ids=research_ids,
+                draft_ids=draft_ids,
+                publication_ids=publication_ids,
+                is_successful=(overall_status in (WorkflowStatus.SUCCESS, WorkflowStatus.PARTIAL_SUCCESS, WorkflowStatus.NO_CONTENT)),
+                halted_at_stage=first_failed_stage,
+                rationale=workflow_rationale,
+                traceability=traceability,
+            )
+        )
+    except Exception as top_exc:
+        s_end = datetime.now(timezone.utc).isoformat()
+        logger.error(f"Unexpected top-level workflow failure for workflow '{workflow_id}': {top_exc}")
+        halted = stages[-1].stage_name if stages else "workflow_initialization"
+        failed_result = AgentWorkflowResult(
             workflow_id=workflow_id,
             agent_id=agent_id,
-            status=overall_status,
+            status=WorkflowStatus.FAILED,
             started_at=started_at,
-            completed_at=completed_at,
+            completed_at=s_end,
             stages=stages,
             selected_topic_ids=selected_topic_ids,
             research_ids=research_ids,
             draft_ids=draft_ids,
             publication_ids=publication_ids,
-            is_successful=(overall_status in (WorkflowStatus.SUCCESS, WorkflowStatus.PARTIAL_SUCCESS, WorkflowStatus.NO_CONTENT)),
-            halted_at_stage=None,
-            rationale=workflow_rationale,
+            is_successful=False,
+            halted_at_stage=halted,
+            rationale=f"Workflow halted due to unexpected error: {type(top_exc).__name__}",
             traceability=traceability,
         )
-    )
+        _persist_result(failed_result)
+        return failed_result

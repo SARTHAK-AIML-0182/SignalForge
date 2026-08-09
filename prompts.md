@@ -4481,3 +4481,590 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 
 
+### Session 018 — Workflow Reliability, Failure Recovery & Resume Safety
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+Sessions 001–017 are complete and checkpointed.
+
+Current verified backend capabilities include:
+
+- FastAPI backend
+- SQLite persistence
+- Agent initialization
+- Agent feed
+- Live RSS/Atom topic discovery
+- Topic normalization and deduplication
+- Editorial evaluation and scoring
+- Research repository
+- Evidence repository
+- Autonomous research/evidence collection
+- Research validation
+- Research synthesis
+- Content brief generation
+- Deterministic writer
+- Publishing abstraction
+- Dry-run publishing
+- 9-stage autonomous workflow orchestrator
+- POST /api/agent/{agent_id}/workflow/run
+- Persistent workflow execution records
+- Persistent workflow stage records
+- GET workflow detail endpoint
+- GET workflow history endpoint
+- Workflow inspection endpoint
+- Workflow history filtering
+- Stage statistics
+- Execution duration
+- Durable traceability
+- 204 automated tests currently passing
+
+The backend currently persists workflow execution state and exposes it through inspection APIs.
+
+The next objective is to harden workflow reliability and failure handling.
+
+IMPORTANT:
+
+This session is NOT about adding scheduling.
+
+This session is NOT about background workers.
+
+This session is NOT about automatic workflow resumption.
+
+This session is NOT about real social-media publishing.
+
+This session is NOT about OAuth.
+
+This session is NOT about LLM integration.
+
+This session is NOT about frontend work.
+
+Do not redesign the 9-stage workflow.
+
+Do not change the existing workflow business logic unless required to correctly handle failure state.
+
+Do not duplicate workflow execution logic.
+
+Do not introduce a second persistence system.
+
+Do not weaken existing tests.
+
+The goal is to ensure that workflow failures are deterministic, safely persisted, diagnosable, and cannot accidentally produce false SUCCESS states or unsafe publication behavior.
+
+--------------------------------------------------
+1. FAILURE MODEL
+--------------------------------------------------
+
+Review the existing workflow execution and persistence implementation.
+
+Define clear behavior for:
+
+- stage-level controlled failure
+- stage-level blocked result
+- unexpected exception
+- persistence failure
+- final workflow failure
+- partial workflow success
+- no-content workflow
+
+Reuse the existing:
+
+- WorkflowStatus
+- WorkflowStageStatus
+- AgentWorkflowResult
+- WorkflowStageResult
+
+Do not create duplicate status enums.
+
+The existing workflow status values must remain authoritative:
+
+- RUNNING
+- SUCCESS
+- PARTIAL_SUCCESS
+- NO_CONTENT
+- FAILED
+
+--------------------------------------------------
+2. FAILURE PERSISTENCE
+--------------------------------------------------
+
+Ensure that when a workflow encounters an unexpected exception:
+
+1. The workflow is already persisted as RUNNING.
+2. Completed stages remain persisted.
+3. The failing stage is represented appropriately.
+4. The workflow transitions to FAILED.
+5. completed_at is persisted.
+6. is_successful is False.
+7. halted_at_stage identifies the relevant stage when available.
+8. rationale contains a sanitized failure explanation.
+9. No stack trace is exposed through API responses.
+10. No false SUCCESS state can be returned.
+
+The persisted result must remain reconstructable after process restart.
+
+--------------------------------------------------
+3. STAGE FAILURE SEMANTICS
+--------------------------------------------------
+
+Review the existing stage execution behavior.
+
+For each stage, distinguish between:
+
+- SUCCEEDED
+- FAILED
+- BLOCKED
+- SKIPPED
+
+Do not collapse these states into generic failure.
+
+Verify that:
+
+- FAILED means execution encountered an error.
+- BLOCKED means execution was intentionally prevented by a gate.
+- SKIPPED means the stage was intentionally not executed because of workflow conditions.
+
+Preserve existing semantics wherever already implemented.
+
+--------------------------------------------------
+4. HALT BEHAVIOR
+--------------------------------------------------
+
+When a critical stage fails:
+
+- subsequent dependent stages must not execute
+- the workflow must halt deterministically
+- already completed stages must remain intact
+- the persisted workflow must identify the halt point
+- the final workflow status must not become SUCCESS
+
+Do not introduce retries in this session.
+
+Do not introduce automatic recovery.
+
+Do not introduce background execution.
+
+--------------------------------------------------
+5. PERSISTENCE FAILURE SAFETY
+--------------------------------------------------
+
+Review how persistence errors interact with workflow execution.
+
+The system must never silently report:
+
+SUCCESS
+
+when the final workflow state could not be persisted.
+
+If final persistence fails:
+
+- do not fabricate a successful persisted state
+- return a safe failure representation
+- sanitize the error
+- do not expose database paths or SQL details
+
+Do not hide persistence failures.
+
+Do not corrupt existing workflow records.
+
+--------------------------------------------------
+6. PUBLICATION SAFETY
+--------------------------------------------------
+
+Verify that workflow failure states cannot accidentally reach publication.
+
+The following must remain true:
+
+- unpublishable drafts cannot be published
+- failed workflow stages cannot trigger publication
+- blocked workflow stages cannot trigger publication
+- workflow failure cannot produce a DRY_RUN success
+- no real external publishing is introduced
+
+Use the existing publishing gate.
+
+Do not redesign publishing.
+
+--------------------------------------------------
+7. IDEMPOTENCY / DUPLICATION SAFETY
+--------------------------------------------------
+
+Verify that failures do not create duplicate workflow records.
+
+A workflow execution must have exactly one workflow_id.
+
+Repeated GET requests must never create records.
+
+Do not introduce automatic retry behavior.
+
+Do not silently execute the workflow again.
+
+Do not alter workflow ID generation semantics unless absolutely necessary.
+
+--------------------------------------------------
+8. PARTIAL SUCCESS
+--------------------------------------------------
+
+Review the existing PARTIAL_SUCCESS behavior.
+
+Ensure it is deterministic and correctly persisted.
+
+A partial success must:
+
+- retain successful stage results
+- retain failed/blocked/skipped stages
+- contain correct is_successful semantics
+- contain a truthful rationale
+- preserve traceability for completed work
+- remain reconstructable from SQLite
+
+Do not redefine PARTIAL_SUCCESS unless the current implementation is demonstrably incorrect.
+
+--------------------------------------------------
+9. NO CONTENT
+--------------------------------------------------
+
+Review NO_CONTENT behavior.
+
+Ensure that when no topics are selected:
+
+- workflow status is NO_CONTENT
+- is_successful follows existing semantics
+- completed_at is persisted
+- rationale explains why no content was produced
+- no research/draft/publication stages are falsely reported as successful
+- persisted workflow can still be inspected
+
+--------------------------------------------------
+10. CONTROLLED FAILURE INJECTION
+--------------------------------------------------
+
+Add deterministic test-only failure injection.
+
+IMPORTANT:
+
+Failure injection must exist only in tests or through a clearly isolated internal test mechanism.
+
+Do not expose a production API switch that allows arbitrary failure injection.
+
+Use dependency injection, monkeypatching, test doubles, or another clean testing technique.
+
+Tests should be able to simulate:
+
+- research stage failure
+- synthesis stage failure
+- draft generation failure
+- publication failure
+- persistence failure
+
+without network access.
+
+--------------------------------------------------
+11. TESTING
+--------------------------------------------------
+
+Add deterministic automated tests.
+
+Use isolated temporary SQLite databases.
+
+No internet.
+
+No external APIs.
+
+No LLM.
+
+At minimum test:
+
+1. RUNNING state is persisted before execution.
+2. Successful workflow remains SUCCESS.
+3. Controlled research failure becomes FAILED.
+4. Controlled synthesis failure becomes FAILED.
+5. Controlled writer failure becomes FAILED.
+6. Controlled publishing failure cannot become SUCCESS.
+7. Failed workflow preserves completed stages.
+8. Failed workflow records halted_at_stage.
+9. Failed workflow has completed_at.
+10. Failed workflow has is_successful=False.
+11. Failure rationale is sanitized.
+12. Stack traces are not exposed.
+13. BLOCKED stage does not execute dependent publication.
+14. SKIPPED stage is preserved correctly.
+15. PARTIAL_SUCCESS remains correctly persisted.
+16. NO_CONTENT remains correctly persisted.
+17. Persistence failure cannot produce false SUCCESS.
+18. Workflow GET after failure reconstructs the same failure state.
+19. Workflow inspection after failure reports correct statistics.
+20. Traceability from completed stages survives failure.
+21. Repeated GET requests do not create duplicates.
+22. Existing workflow API behavior remains intact.
+23. Existing publishing safety tests remain intact.
+24. Existing research persistence remains intact.
+25. Full existing test suite remains green.
+
+Do not weaken or delete existing tests.
+
+--------------------------------------------------
+12. REGRESSION VERIFICATION
+--------------------------------------------------
+
+Run:
+
+python -m pytest
+
+The entire test suite must pass.
+
+The expected baseline is currently:
+
+204 passed
+
+The final number should be >= 204.
+
+Do not accept partial success.
+
+If failures appear, determine whether they are caused by Session 018.
+
+Fix only relevant issues.
+
+--------------------------------------------------
+13. CONTROLLED LIVE VERIFICATION
+--------------------------------------------------
+
+After all tests pass, run a controlled local verification against:
+
+data/signalforge.db
+
+Use the existing NOVA agent if available.
+
+Perform at least:
+
+A. Normal workflow execution.
+
+Verify:
+
+- workflow completes
+- persisted status matches returned status
+- stages are persisted
+- inspection works
+- history works
+
+B. Controlled failure simulation.
+
+Use a test-only mechanism.
+
+Verify:
+
+- workflow begins as RUNNING
+- failure is persisted as FAILED
+- completed stages remain available
+- halted stage is recorded
+- inspection reports failure
+- no publication occurs after failure
+
+Do not intentionally damage the production-like database.
+
+Do not send real external requests.
+
+--------------------------------------------------
+14. API VERIFICATION
+--------------------------------------------------
+
+Verify existing APIs remain correct:
+
+POST /api/agent/{agent_id}/workflow/run
+
+GET /api/agent/{agent_id}/workflow/{workflow_id}
+
+GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection
+
+GET /api/agent/{agent_id}/workflows
+
+The API must return sanitized JSON.
+
+No internal Python objects.
+
+No stack traces.
+
+No database paths.
+
+--------------------------------------------------
+15. ARCHITECTURAL REQUIREMENTS
+--------------------------------------------------
+
+Maintain:
+
+API
+  ->
+workflow orchestrator
+  ->
+workflow repository
+  ->
+SQLite
+
+Publishing remains:
+
+workflow
+  ->
+publishability gate
+  ->
+publishing service
+  ->
+dry-run adapter
+
+Do not bypass these boundaries.
+
+Do not put SQL in API routes.
+
+Do not put HTTP logic in repositories.
+
+Do not put test-only failure controls into public API contracts.
+
+--------------------------------------------------
+16. FILES
+--------------------------------------------------
+
+Modify only files necessary for this subsystem.
+
+Likely files:
+
+backend/app/services/workflow/orchestrator.py
+
+backend/app/services/workflow/models.py
+
+backend/app/repositories/workflow_repository.py
+
+backend/app/api/agent.py
+only if required for failure-safe responses
+
+backend/app/api/workflow_schemas.py
+only if required
+
+backend/tests/test_workflow_failure_recovery.py
+
+backend/tests/test_workflow_failure_api.py
+
+prompts.md
+
+Do not create unnecessary abstractions.
+
+Do not modify unrelated subsystems.
+
+--------------------------------------------------
+17. SAFETY CONSTRAINTS
+--------------------------------------------------
+
+This session must NOT introduce:
+
+- scheduling
+- recurring execution
+- background workers
+- Celery
+- RQ
+- Redis
+- automatic retries
+- automatic workflow resumption
+- real social publishing
+- OAuth
+- LLM calls
+- frontend changes
+
+--------------------------------------------------
+18. FINAL VERIFICATION REPORT
+--------------------------------------------------
+
+After implementation report:
+
+1. Files created.
+2. Files modified.
+3. Failure model.
+4. Stage failure semantics.
+5. Halt behavior.
+6. Persistence failure handling.
+7. Publication safety.
+8. Partial-success behavior.
+9. No-content behavior.
+10. Failure-injection testing mechanism.
+11. Complete pytest result.
+12. Controlled normal workflow result.
+13. Controlled failure result.
+14. API verification.
+15. Traceability verification.
+16. Error-safety verification.
+17. Assumptions and limitations.
+18. Code-review verification.
+19. Confirmation of zero LLM usage.
+20. Confirmation of zero external publishing.
+21. Confirmation of zero scheduling/background workers/retries.
+
+Update prompts.md with the complete Session 018 development record.
+
+Do NOT commit or push changes.
+
+Leave the final Git state uncommitted for manual review.
+
+**Result:**
+
+Hardened workflow execution reliability, failure persistence, exception handling, and publication safety across all 9 workflow stages. Updated `app/services/workflow/orchestrator.py` to wrap workflow execution in top-level `try...except Exception` blocks, ensuring unexpected errors transition `RUNNING` status to `FAILED`, record `halted_at_stage`, retain completed stage history, and return a sanitized failure explanation. Updated `_persist_result()` so that if `workflow_repo.save_workflow()` fails during final completion of a non-FAILED workflow, it safely returns `WorkflowStatus.FAILED` (`is_successful=False`, `halted_at_stage="persistence"`), preventing false `SUCCESS` returns when database persistence fails. Updated overall status calculation so that any stage failure with zero successful publications resolves to `WorkflowStatus.FAILED`. Added 13 automated unit and API integration tests in `tests/test_workflow_failure_recovery.py` and `tests/test_workflow_failure_api.py`.
+
+**Human Verification:**
+
+- Verified `POST /api/agent/{agent_id}/workflow/run` returns HTTP 200 with `status=FAILED`, `is_successful=False`, and `halted_at_stage` set appropriately when stage errors occur.
+- Verified unexpected orchestrator exceptions return sanitized HTTP 500 error detail (`"Internal workflow execution error."`) without leaking stack traces or database/filesystem paths.
+- Verified `GET /api/agent/{agent_id}/workflow/{workflow_id}` and `GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection` correctly reconstruct and report `FAILED` state, stage statistics, and traceability after process restarts.
+- Verified GET endpoints are idempotent and never create or mutate database records.
+- Executed controlled live verification script (`scratch/test_live_workflow_failure.py`) against `data/signalforge.db`: verified normal workflow execution (`status: NO_CONTENT`) and controlled failure simulation (`status: FAILED`, `halted_at_stage: research_top-live-fail-001`, `stage_stats: {'total_stages': 3, 'succeeded_stages': 2, 'failed_stages': 1}`), confirming zero real external publishing or LLM calls occurred.
+- Verified complete test suite: 217 passed out of 217 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 217 items
+
+tests\test_agent_init.py .....                                           [  2%]
+tests\test_content_brief.py ................                             [  9%]
+tests\test_database.py .....                                             [ 11%]
+tests\test_editorial_engine.py ..........                                [ 16%]
+tests\test_editorial_quality.py ....                                     [ 18%]
+tests\test_publishing.py ..................                              [ 26%]
+tests\test_research_engine.py ............                               [ 32%]
+tests\test_research_repository.py ...............                        [ 39%]
+tests\test_research_synthesis.py ................                        [ 46%]
+tests\test_research_validation.py ..............                         [ 52%]
+tests\test_research_writer.py ....................                       [ 62%]
+tests\test_topic_discovery.py ......                                     [ 64%]
+tests\test_workflow.py ....................                              [ 74%]
+tests\test_workflow_api.py ................                              [ 81%]
+tests\test_workflow_failure_api.py ....                                  [ 83%]
+tests\test_workflow_failure_recovery.py .........                        [ 87%]
+tests\test_workflow_inspection_api.py ......                             [ 90%]
+tests\test_workflow_observability.py ......                              [ 93%]
+tests\test_workflow_repository.py .......                                [ 96%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 217 passed, 1 warning in 54.01s (0:00:54) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **No Retries or Resumption**: Workflows halt deterministically upon stage failure without automatic retries or background workers.
+- **Dry-Run Enforcement**: Dry-run publishing simulation remains strictly enabled. Zero external social media platform APIs or OAuth endpoints are connected.
+
+**Code Review Verification:**
+
+- Verified top-level exception handling in `orchestrator.py`.
+- Verified persistence error safety in `_persist_result()`.
+- Verified sanitized HTTP 500 error responses in `agent.py`.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling, retries, or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+feat: add workflow failure recovery and safety
+
+
+
