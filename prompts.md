@@ -6859,3 +6859,101 @@ Pending (ready for manual review before final commit, push, and handover)
 **Known Limitations:** Dry-run-only publishing, deterministic rule-based intelligence, synchronous execution, and process-local rate limiting.
 
 **Commit:** Pending.
+
+---
+
+## Part 2 — Frontend Development Log (Prompts 001–00X)
+
+### Prompt 001 — Project Setup
+
+**Date:** 2026-08-08
+**AI Tool:** Antigravity
+**Team Member:** Frontend
+**Purpose:** Initialize the frontend development workflow and project architecture.
+
+**Prompt:**
+You are working on the frontend of a hackathon project called SignalForge.
+SignalForge is an autonomous AI technology intelligence agent. Its persona is NOVA, an autonomous technology signal analyst.
+I am responsible ONLY for the frontend. Do not modify backend files or backend API behavior.
+Create a production-quality React + Vite frontend inside /frontend using React, Vite, Tailwind CSS, and Lucide React icons.
+
+**AI Action / Output:** Created React/Vite dashboard in /frontend with component-based architecture.
+
+**Human Review / Decisions:** Approved initial dashboard layout.
+
+**Files Changed:** `frontend/` source tree.
+
+**Git Commit:** 3533682 feat: build initial NOVA dashboard
+
+
+### Prompt 002 — Frontend API Integration
+
+**Date:** 2026-08-09
+**AI Tool:** Antigravity
+**Team Member:** Frontend
+**Purpose:** Create a typed frontend API service based on verified backend API contracts.
+
+**Prompt:**
+Integrate the existing SignalForge React frontend with the FastAPI backend using verified backend contracts (`/api/agent/init`, `/api/agent/feed`, `/api/agent/{agent_id}/workflows`, etc.). Create `src/services/agentApi.ts`.
+
+**AI Action / Output:** Implemented API client functions in `agentApi.ts`.
+
+**Human Review / Decisions:** Reviewed API service layer structure.
+
+**Files Changed:** `frontend/src/services/agentApi.ts`, `frontend/.env.example`, `frontend/package.json`
+
+**Git Commit:** 540e544 feat: add frontend agent API client
+
+
+### Prompt 003 — Dashboard Live Feed Integration
+
+**Date:** 2026-08-09
+**AI Tool:** Antigravity
+**Team Member:** Frontend
+**Purpose:** Connect dashboard UI components to live agent feed and workflow status endpoints.
+
+**Prompt:**
+Connect the dashboard feed and status indicators to live backend endpoints while preserving visual design and fallback states.
+
+**AI Action / Output:** Wired `getFeed` and `getWorkflows` into dashboard state.
+
+**Human Review / Decisions:** Verified visual HUD design and post adapter logic.
+
+**Files Changed:** `frontend/src/App.tsx`, `frontend/src/services/postAdapter.ts`
+
+**Git Commit:** 80f5957 feat: connect dashboard to live agent feed
+
+
+---
+
+## Part 3 — Final Integration & Verification (Session 027)
+
+### Session 027 — Frontend–Backend Integration & Demo Readiness
+
+**Prompt:** Perform the final frontend ↔ backend integration audit and implementation for SignalForge. Match the React/Vite dashboard to the complete FastAPI backend architecture through Session 026. Do not modify or regress the backend. Implement a typed frontend API service layer (`frontend/src/services/agentApi.ts`) for all 10 backend endpoints with an `ApiError` class capturing HTTP status, detail messages, and `Retry-After` headers. Replace the simulated scan logic in `App.tsx` with a direct call to `POST /api/agent/{agent_id}/workflow/run`. Connect agent session initialization (`POST /api/agent/init`), persona retrieval/editing (`GET/PUT /api/agent/{agent_id}/persona`), feed configuration (`GET/PUT /api/agent/{agent_id}/feed/config`), workflow inspection (`GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection`), workflow history (`GET /api/agent/{agent_id}/workflows`), feed stream (`GET /api/agent/feed?agentId=...`), and per-topic failure diagnostics. Handle 422 governance rejections and 429 rate limiting gracefully. Add SPA fallback configuration (`_redirects` for Netlify, `vercel.json` for Vercel) and environment variable `VITE_API_BASE_URL`. Verify `npm run typecheck`, `npm run build`, `npm run lint`, and `python -m pytest` (291 passed).
+
+**Expected Result:**
+- Frontend API service layer supports all 10 FastAPI backend endpoints with explicit TypeScript types.
+- Trigger Cycle calls real 9-stage workflow execution endpoint.
+- Live feed, persona editing, feed rules, workflow history, inspection stats, and diagnostics connected.
+- HTTP 429 rate limiting and HTTP 422 governance rejections handled with user-friendly alert banners.
+- SPA deployment configuration ready for Netlify and Vercel.
+- 0 backend changes required; backend regression suite remains 291/291 passed.
+- `npm run typecheck`, `npm run build`, and `npm run lint` succeed with 0 errors.
+
+**Human Verification:**
+
+- Verified 100% real workflow execution via `POST /api/agent/{agent_id}/workflow/run` (0 `setTimeout` simulations).
+- Verified persona configuration modal connected to `GET/PUT /api/agent/{agent_id}/persona` and `GET/PUT /api/agent/{agent_id}/feed/config`.
+- Verified live feed post adapter and per-topic failure diagnostics mapping.
+- Verified rate limiting banner countdown and governance rejection handling.
+- Verified zero backend source code modifications.
+
+**Test Suite & Verification Results:**
+
+- `npm run typecheck`: Passed (0 errors).
+- `npm run build`: Passed (dist/ generated in 5.33s).
+- `npm run lint`: Passed (0 errors / 0 warnings across 18 files).
+- `python -m pytest`: Passed (**291 passed out of 291 tests** in 71.57s).
+
+**Commit:** Pending (ready for manual review before final commit, push, and branch merge).
