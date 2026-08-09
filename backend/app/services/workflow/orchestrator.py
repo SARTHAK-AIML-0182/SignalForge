@@ -42,6 +42,7 @@ from app.services.workflow.models import (
     WorkflowStageStatus,
     WorkflowStatus,
 )
+from app.services.workflow.policy import WorkflowPolicy, resolve_workflow_policy
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +64,13 @@ def run_agent_workflow(
     Stages: Discovery -> Editorial -> Research -> Validation -> Synthesis -> Brief -> Writer -> Gate -> Dry-Run Publishing.
     Isolates topic-level failures and maintains full 9-stage end-to-end traceability.
     """
+    policy = resolve_workflow_policy(config)
+    policy_dict = policy.to_dict()
+
     started_at = datetime.now(timezone.utc).isoformat()
     workflow_id = f"wf-{secrets.token_hex(8)}"
 
-    if config is None:
-        config = WorkflowConfig()
+    config = policy
 
     db_path = None
     for r in [topic_repo, agent_repo, research_repo, evidence_repo, workflow_repo]:
@@ -112,6 +115,7 @@ def run_agent_workflow(
                     halted_at_stage="persistence",
                     rationale="Workflow execution completed, but persisting final workflow state failed.",
                     traceability=res.traceability,
+                    policy=policy_dict,
                 )
             return res
 
@@ -139,6 +143,7 @@ def run_agent_workflow(
             halted_at_stage=None,
             rationale="Workflow execution in progress.",
             traceability={},
+            policy=policy_dict,
         )
     )
 
@@ -200,6 +205,7 @@ def run_agent_workflow(
                     halted_at_stage="topic_discovery",
                     rationale="Workflow halted: Topic discovery failed completely.",
                     traceability={},
+                    policy=policy_dict,
                 )
             )
 
@@ -264,6 +270,7 @@ def run_agent_workflow(
                     halted_at_stage="editorial_evaluation",
                     rationale="Workflow halted: Editorial evaluation failed.",
                     traceability={},
+                    policy=policy_dict,
                 )
             )
 
@@ -308,6 +315,7 @@ def run_agent_workflow(
                     halted_at_stage=None,
                     rationale="NO CONTENT: Workflow completed cleanly, but zero topics met the editorial selection threshold.",
                     traceability={},
+                    policy=policy_dict,
                 )
             )
 
@@ -706,6 +714,7 @@ def run_agent_workflow(
                 halted_at_stage=first_failed_stage,
                 rationale=workflow_rationale,
                 traceability=traceability,
+                policy=policy_dict,
             )
         )
     except Exception as top_exc:
@@ -727,6 +736,7 @@ def run_agent_workflow(
             halted_at_stage=halted,
             rationale=f"Workflow halted due to unexpected error: {type(top_exc).__name__}",
             traceability=traceability,
+            policy=policy_dict,
         )
         _persist_result(failed_result)
         return failed_result

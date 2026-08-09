@@ -5068,3 +5068,124 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 
 
+### Session 019 — Workflow Policy, Configuration & Execution Governance
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+Sessions 001–018 are complete and checkpointed.
+
+Current verified backend capabilities include:
+
+- FastAPI backend
+- SQLite persistence
+- Agent initialization
+- Agent feed
+- Live RSS/Atom topic discovery
+- Topic normalization and deduplication
+- Editorial evaluation and scoring
+- Research repository
+- Evidence repository
+- Autonomous research/evidence collection
+- Research validation
+- Research synthesis
+- Content brief generation
+- Deterministic writer
+- Publishing abstraction
+- Dry-run publishing
+- 9-stage autonomous workflow orchestrator
+- POST /api/agent/{agent_id}/workflow/run
+- Persistent workflow execution records
+- Persistent workflow stage records
+- Workflow detail retrieval
+- Workflow history
+- Workflow inspection
+- Workflow history filtering
+- Stage statistics
+- Execution duration
+- Durable traceability
+- Failure persistence
+- Failure-safe workflow execution
+- Sanitized workflow errors
+- 217 automated tests currently passing
+
+The workflow currently accepts execution configuration such as:
+
+- max_topics
+- editorial_threshold
+- enable_dry_run_publication
+
+These settings are currently supplied directly to the workflow execution API.
+
+The next objective is to introduce a small, deterministic, inspectable workflow policy/configuration layer.
+
+**Result:**
+
+Implemented a structured, deterministic, inspectable `WorkflowPolicy` model and execution governance layer for SignalForge. Created `app/services/workflow/policy.py` defining `WorkflowPolicy` and `resolve_workflow_policy()` to enforce strict configuration bounds (`max_topics` 1–10, `editorial_threshold` 0.0–1.0 / 0.0–10.0, `publication_mode` strictly `"dry_run"` or `"disabled"`). Updated `app/db/database.py` with non-destructive schema migration adding a `policy` JSON column to the `workflows` table. Extended `SQLiteWorkflowRepository` in `workflow_repository.py` to persist and load `policy` JSON while preserving `policy: None` for legacy workflow records. Updated `orchestrator.py` to validate policy prior to stage execution or database mutations, ensuring invalid requests raise `ValueError` before workflow execution begins. Updated `workflow_schemas.py` and `agent.py` to accept `publication_mode`, handle policy validation errors with HTTP 422, and expose effective `policy` across POST run, GET status, GET inspection, and GET history endpoints. Added 20 automated unit and API integration tests in `tests/test_workflow_policy.py` and `tests/test_workflow_policy_api.py`.
+
+**Human Verification:**
+
+- Verified `POST /api/agent/{agent_id}/workflow/run` returns HTTP 200 with effective `policy` dictionary when provided valid default or custom parameters.
+- Verified invalid configuration inputs (`max_topics` <= 0 or > 10, `publication_mode="live"`, `publication_mode="social"`) return HTTP 422 Unprocessable Entity and create 0 database records.
+- Verified `GET /api/agent/{agent_id}/workflow/{workflow_id}`, `GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection`, and `GET /api/agent/{agent_id}/workflows` return stored effective policy.
+- Verified legacy workflow records created before Session 019 return `policy: null` gracefully without errors.
+- Executed controlled live verification script (`scratch/test_live_workflow_policy.py`) against `data/signalforge.db`: verified default policy execution, custom valid policy execution, and invalid policy HTTP 422 rejection, confirming zero real external publishing or LLM calls occurred.
+- Verified complete test suite: 237 passed out of 237 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 237 items
+
+tests\test_agent_init.py .....                                           [  2%]
+tests\test_content_brief.py ................                             [  8%]
+tests\test_database.py .....                                             [ 10%]
+tests\test_editorial_engine.py ..........                                [ 15%]
+tests\test_editorial_quality.py ....                                     [ 16%]
+tests\test_publishing.py ..................                              [ 24%]
+tests\test_research_engine.py ............                               [ 29%]
+tests\test_research_repository.py ...............                        [ 35%]
+tests\test_research_synthesis.py ................                        [ 42%]
+tests\test_research_validation.py ..............                         [ 48%]
+tests\test_research_writer.py ....................                       [ 56%]
+tests\test_topic_discovery.py ......                                     [ 59%]
+tests\test_workflow.py ....................                              [ 67%]
+tests\test_workflow_api.py ................                              [ 74%]
+tests\test_workflow_failure_api.py ....                                  [ 76%]
+tests\test_workflow_failure_recovery.py .........                        [ 80%]
+tests\test_workflow_inspection_api.py ......                             [ 82%]
+tests\test_workflow_observability.py ......                              [ 85%]
+tests\test_workflow_policy.py ...............                            [ 91%]
+tests\test_workflow_policy_api.py .....                                  [ 93%]
+tests\test_workflow_repository.py .......                                [ 96%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 237 passed, 1 warning in 93.96s (0:01:33) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Publication Modes**: Supported modes are strictly `"dry_run"` or `"disabled"`. Live external publishing is forbidden.
+- **No Retries or Resumption**: Workflows run deterministically based on resolved effective policy without automatic retries or background workers.
+
+**Code Review Verification:**
+
+- Verified `WorkflowPolicy` validation logic in `policy.py`.
+- Verified pre-execution policy resolution in `orchestrator.py`.
+- Verified non-destructive SQLite migration in `database.py`.
+- Verified HTTP 422 validation handling in `agent.py`.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling, retries, or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+Pending
+
+
+

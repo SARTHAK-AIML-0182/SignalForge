@@ -132,6 +132,7 @@ def run_workflow_endpoint(
         max_topics=payload.max_topics,
         editorial_threshold=config_editorial_threshold,
         enable_dry_run_publication=payload.enable_dry_run_publication,
+        publication_mode=payload.publication_mode or "dry_run",
     )
 
     try:
@@ -140,6 +141,11 @@ def run_workflow_endpoint(
             config=config,
             agent_repo=agent_repo,
             workflow_repo=workflow_repo,
+        )
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(val_err)
         )
     except Exception as exc:
         raise HTTPException(
@@ -176,6 +182,7 @@ def run_workflow_endpoint(
         publication_ids=wf_result.publication_ids,
         stages=stage_responses,
         traceability=wf_result.traceability,
+        policy=wf_result.policy,
     )
 
 
@@ -233,6 +240,7 @@ def get_workflow_status_endpoint(
         publication_ids=wf_result.publication_ids,
         stages=stage_responses,
         traceability=wf_result.traceability,
+        policy=wf_result.policy,
     )
 
 
@@ -291,6 +299,7 @@ def inspect_workflow_endpoint(
         draft_count=len(wf.draft_ids or []),
         publication_count=len(wf.publication_ids or []),
         traceability_summary=trace_summary,
+        policy=wf.policy,
     )
 
 
@@ -344,6 +353,7 @@ def list_workflows_endpoint(
             draft_count=len(wf.draft_ids or []),
             publication_count=len(wf.publication_ids or []),
             publication_ids_count=len(wf.publication_ids or []),
+            policy=wf.policy,
         )
         for wf in workflows
     ]

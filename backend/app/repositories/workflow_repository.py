@@ -110,8 +110,8 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                     INSERT INTO workflows (
                         workflow_id, agent_id, status, started_at, completed_at,
                         is_successful, halted_at_stage, rationale, selected_topic_ids,
-                        research_ids, draft_ids, publication_ids, traceability
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        research_ids, draft_ids, publication_ids, traceability, policy
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(workflow_id) DO UPDATE SET
                         status = excluded.status,
                         completed_at = excluded.completed_at,
@@ -122,7 +122,8 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                         research_ids = excluded.research_ids,
                         draft_ids = excluded.draft_ids,
                         publication_ids = excluded.publication_ids,
-                        traceability = excluded.traceability
+                        traceability = excluded.traceability,
+                        policy = excluded.policy
                     """,
                     (
                         result.workflow_id,
@@ -138,6 +139,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                         json.dumps(result.draft_ids or []),
                         json.dumps(result.publication_ids or []),
                         json.dumps(result.traceability or {}),
+                        json.dumps(result.policy or {}),
                     ),
                 )
 
@@ -179,7 +181,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                 """
                 SELECT workflow_id, agent_id, status, started_at, completed_at,
                        is_successful, halted_at_stage, rationale, selected_topic_ids,
-                       research_ids, draft_ids, publication_ids, traceability
+                       research_ids, draft_ids, publication_ids, traceability, policy
                 FROM workflows WHERE workflow_id = ?
                 """,
                 (workflow_id,),
@@ -213,6 +215,9 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                 for st_row in stage_rows
             ]
 
+            raw_policy = row["policy"] if "policy" in row.keys() else "{}"
+            parsed_policy = json.loads(raw_policy) if raw_policy and raw_policy != "{}" else None
+
             return AgentWorkflowResult(
                 workflow_id=row["workflow_id"],
                 agent_id=row["agent_id"],
@@ -228,6 +233,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                 halted_at_stage=row["halted_at_stage"],
                 rationale=row["rationale"] or "",
                 traceability=json.loads(row["traceability"] or "{}"),
+                policy=parsed_policy,
             )
         finally:
             conn.close()
@@ -245,7 +251,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
             query = """
                 SELECT workflow_id, agent_id, status, started_at, completed_at,
                        is_successful, halted_at_stage, rationale, selected_topic_ids,
-                       research_ids, draft_ids, publication_ids, traceability
+                       research_ids, draft_ids, publication_ids, traceability, policy
                 FROM workflows WHERE agent_id = ?
             """
             params: List[Union[str, int]] = [agent_id]
@@ -289,6 +295,9 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                     for st_row in stage_rows
                 ]
 
+                raw_policy = row["policy"] if "policy" in row.keys() else "{}"
+                parsed_policy = json.loads(raw_policy) if raw_policy and raw_policy != "{}" else None
+
                 results.append(
                     AgentWorkflowResult(
                         workflow_id=row["workflow_id"],
@@ -305,6 +314,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                         halted_at_stage=row["halted_at_stage"],
                         rationale=row["rationale"] or "",
                         traceability=json.loads(row["traceability"] or "{}"),
+                        policy=parsed_policy,
                     )
                 )
             return results

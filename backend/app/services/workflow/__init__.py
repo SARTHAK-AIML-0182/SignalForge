@@ -8,11 +8,14 @@ from app.services.workflow.models import (
     WorkflowStatus,
 )
 from app.services.workflow.orchestrator import run_agent_workflow
+from app.services.workflow.policy import WorkflowPolicy, resolve_workflow_policy
 
 __all__ = [
     "WorkflowStatus",
     "WorkflowStageStatus",
     "WorkflowConfig",
+    "WorkflowPolicy",
+    "resolve_workflow_policy",
     "WorkflowStageResult",
     "AgentWorkflowResult",
     "run_agent_workflow",

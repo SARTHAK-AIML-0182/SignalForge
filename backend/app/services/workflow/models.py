@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from app.services.workflow.policy import WorkflowPolicy
+
 
 class WorkflowStatus:
     RUNNING = "RUNNING"
@@ -19,13 +21,8 @@ class WorkflowStageStatus:
     BLOCKED = "BLOCKED"
 
 
-@dataclass
-class WorkflowConfig:
-    max_topics: int = 5
-    max_research_items: int = 3
-    enable_dry_run_publication: bool = True
-    validation_threshold: float = 0.65
-    editorial_threshold: float = 6.5
+# WorkflowConfig is alias to WorkflowPolicy for backwards compatibility
+WorkflowConfig = WorkflowPolicy
 
 
 @dataclass
@@ -56,3 +53,4 @@ class AgentWorkflowResult:
     halted_at_stage: Optional[str]
     rationale: str
     traceability: Dict[str, Any] = field(default_factory=dict)
+    policy: Optional[Dict[str, Any]] = None

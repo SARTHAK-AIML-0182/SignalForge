@@ -133,9 +133,16 @@ def init_db(db_path: Optional[Union[str, Path]] = None) -> None:
                 draft_ids TEXT NOT NULL DEFAULT '[]',
                 publication_ids TEXT NOT NULL DEFAULT '[]',
                 traceability TEXT NOT NULL DEFAULT '{}',
+                policy TEXT NOT NULL DEFAULT '{}',
                 FOREIGN KEY (agent_id) REFERENCES agents (agent_id) ON DELETE CASCADE
             );
             """)
+
+            # Ensure policy column exists on existing workflows tables
+            cursor = conn.execute("PRAGMA table_info(workflows);")
+            wf_columns = [row["name"] for row in cursor.fetchall()]
+            if "policy" not in wf_columns:
+                conn.execute("ALTER TABLE workflows ADD COLUMN policy TEXT DEFAULT '{}';")
 
             conn.execute("""
             CREATE TABLE IF NOT EXISTS workflow_stages (

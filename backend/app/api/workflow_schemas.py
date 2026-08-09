@@ -3,9 +3,10 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class WorkflowRunRequest(BaseModel):
-    max_topics: int = Field(default=1, ge=1, description="Maximum number of selected topics to process (must be >= 1)")
+    max_topics: int = Field(default=5, ge=1, le=10, description="Maximum number of selected topics to process (1 to 10)")
     editorial_threshold: float = Field(default=0.65, ge=0.0, le=1.0, description="Editorial selection threshold (between 0.0 and 1.0)")
     enable_dry_run_publication: bool = Field(default=True, description="Enable local dry-run publication stage")
+    publication_mode: Optional[str] = Field(default="dry_run", description="Publication execution mode ('dry_run' or 'disabled')")
 
     @field_validator("max_topics", mode="before")
     @classmethod
@@ -20,6 +21,18 @@ class WorkflowRunRequest(BaseModel):
         if isinstance(v, bool):
             raise ValueError("editorial_threshold must be a float, not a boolean")
         return v
+
+    @field_validator("publication_mode", mode="before")
+    @classmethod
+    def validate_pub_mode(cls, v: Any) -> Any:
+        if v is None:
+            return "dry_run"
+        if not isinstance(v, str):
+            raise ValueError("publication_mode must be a string")
+        mode = v.lower().strip()
+        if mode not in {"dry_run", "disabled"}:
+            raise ValueError(f"Unsupported publication_mode '{v}'. Allowed modes are ['disabled', 'dry_run'].")
+        return mode
 
 
 class WorkflowStageResponse(BaseModel):
@@ -48,6 +61,7 @@ class WorkflowRunResponse(BaseModel):
     publication_ids: List[str] = Field(default_factory=list, description="IDs of dry-run publications produced")
     stages: List[WorkflowStageResponse] = Field(default_factory=list, description="Structured stage results")
     traceability: Dict[str, Any] = Field(default_factory=dict, description="9-stage end-to-end traceability mapping")
+    policy: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow policy used for execution")
 
 
 class WorkflowSummaryResponse(BaseModel):
@@ -65,6 +79,7 @@ class WorkflowSummaryResponse(BaseModel):
     draft_count: int = Field(0, description="Count of draft articles generated")
     publication_count: int = Field(0, description="Count of publications produced")
     publication_ids_count: int = Field(0, description="Count of publications produced (backwards-compatible alias)")
+    policy: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow policy used for execution")
 
 
 class WorkflowListResponse(BaseModel):
@@ -99,3 +114,4 @@ class WorkflowInspectionResponse(BaseModel):
     draft_count: int = Field(0, description="Count of draft articles generated")
     publication_count: int = Field(0, description="Count of publications produced")
     traceability_summary: Dict[str, Any] = Field(default_factory=dict, description="Concise traceability summary")
+    policy: Optional[Dict[str, Any]] = Field(default=None, description="Effective workflow policy used for execution")
