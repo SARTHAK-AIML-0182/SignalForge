@@ -254,4 +254,126 @@ The generated changes are being reviewed before committing; backend files and mo
 docs: update AI prompt log for frontend API integration
 
 
+## Prompt 00X — Validate Frontend API Service
 
+**Date:** 2026-08-09
+
+**AI Tool:** Antigravity
+
+**Team Member:** Frontend
+
+**Purpose:**
+Validate and correct the frontend API service and restore the existing TypeScript typecheck script.
+
+**Prompt:**
+
+[PASTE THE EXACT PROMPT USED BELOW]
+
+**AI Action / Output:**
+
+Pending.
+
+**Human Review / Decisions:**
+
+Pending.
+
+**Files Changed:**
+
+Pending.
+
+**Git Commit:**
+
+Pending.
+
+## Prompt 00X — Restore Typecheck Script
+
+**Date:** 2026-08-09
+
+**AI Tool:** Antigravity
+
+**Team Member:** Frontend
+
+**Purpose:**
+Restore the existing frontend TypeScript typecheck script that was unintentionally removed during API integration.
+
+**Prompt:**
+
+[Paste the exact prompt below.]
+
+**AI Action / Output:**
+
+Pending.
+
+**Human Review / Decisions:**
+
+Pending.
+
+**Files Changed:**
+
+Pending.
+
+**Git Commit:**
+
+Pending.
+
+## Prompt 00X — Refine Typed Agent API Contract
+
+**Date:** 2026-08-09
+
+**AI Tool:** Antigravity
+
+**Team Member:** Frontend
+
+**Purpose:**
+Refine the frontend API client so its known types match the verified backend contracts without inventing unknown response fields.
+
+**Prompt:**
+
+[Paste the exact prompt below.]
+
+**AI Action / Output:**
+
+Pending.
+
+**Human Review / Decisions:**
+
+Pending.
+
+**Files Changed:**
+
+Pending.
+
+**Git Commit:**
+
+Pending.
+
+## Prompt 00X — Fix API Base URL Configuration
+
+**Date:** 2026-08-09
+
+**AI Tool:** Antigravity
+
+**Team Member:** Frontend
+
+**Purpose:**
+Correct the API base URL formatting in the frontend API service and environment example.
+
+**Prompt:**
+
+[Paste the exact prompt below.]
+
+**AI Action / Output:**
+
+Pending.
+
+**Human Review / Decisions:**
+
+Pending.
+
+**Files Changed:**
+
+Pending.
+
+**Git Commit:**
+
+Pending.
