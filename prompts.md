@@ -5064,7 +5064,7 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 **Commit:**
 
-feat: add workflow failure recovery and safety
+`ff7f35c` (feat: add workflow failure recovery and safety)
 
 
 
