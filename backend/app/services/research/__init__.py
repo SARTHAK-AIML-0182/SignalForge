@@ -3,6 +3,11 @@
 from app.services.research.engine import ResearchResult, research_topic
 from app.services.research.extractor import extract_page_content, fetch_html
 from app.services.research.scorer import compute_research_confidence, score_evidence_confidence
+from app.services.research.synthesis import (
+    ResearchSynthesisResult,
+    SynthesizedFinding,
+    synthesize_research,
+)
 from app.services.research.validation import (
     EvidenceValidationItem,
     ResearchValidationResult,
@@ -31,4 +36,7 @@ __all__ = [
     "detect_redundancy",
     "score_source_diversity",
     "score_evidence_completeness",
+    "SynthesizedFinding",
+    "ResearchSynthesisResult",
+    "synthesize_research",
 ]

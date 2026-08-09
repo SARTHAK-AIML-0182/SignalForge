@@ -1301,3 +1301,333 @@ tests\test_topic_discovery.py ......                                     [100%]
 **Commit:**
 
 feat:research and evidence validation
+
+
+### Session 010 — Research Synthesis & Intelligence Layer
+
+**Date:** 2026-08-09
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge autonomous AI persona backend.
+>
+> The following functionality is already implemented and committed:
+>
+> - FastAPI backend
+> - POST /api/agent/init
+> - SQLite persistence
+> - Agent repository
+> - Topic repository
+> - Post repository
+> - Live RSS/Atom topic discovery
+> - Feed parsing and normalization
+> - Network error handling
+> - Topic deduplication
+> - Editorial judgment engine
+> - Multi-factor editorial scoring
+> - Selected/rejected topic persistence
+> - Research repository
+> - Evidence repository
+> - Research/evidence SQLite schema
+> - Autonomous Research & Evidence Collection Engine
+> - Web content extraction
+> - Duplicate evidence prevention
+> - Deterministic evidence confidence scoring
+> - Deterministic research confidence scoring
+> - Research Quality & Evidence Validation subsystem
+> - Source quality validation
+> - Content quality validation
+> - Topic/evidence relevance validation
+> - Evidence completeness validation
+> - Source diversity validation
+> - Duplicate and near-duplicate evidence detection
+> - Configurable research validation threshold
+> - Human-readable validation rationales
+> - Automated tests
+>
+> Session 009 established the deterministic Research Quality & Evidence Validation subsystem.
+>
+> Now implement ONLY the Research Synthesis & Intelligence Layer.
+>
+> The purpose of this subsystem is to transform validated research evidence into a structured, source-grounded research intelligence package that a future writing/synthesis system can consume.
+>
+> IMPORTANT:
+>
+> Do not generate the final social-media post.
+>
+> Do not implement the LLM writer.
+>
+> Do not call an external LLM.
+>
+> Do not implement social publishing.
+>
+> Do not implement scheduling.
+>
+> Do not modify the frontend.
+>
+> Do not replace the existing research engine.
+>
+> Do not replace or weaken the existing validation subsystem.
+>
+> Do not automatically launch another research cycle.
+>
+> Build this as a modular backend service operating on the existing ResearchData, EvidenceData, TopicData, and ResearchValidationResult concepts.
+>
+> The synthesis layer should conceptually expose a clear service-level interface such as:
+>
+> `synthesize_research(research_id) -> ResearchSynthesisResult`
+>
+> The result must remain deterministic and source-grounded.
+>
+> The synthesis result should contain enough structured information for a future writer to understand the research without directly reading every raw evidence record.
+>
+> At minimum, include:
+>
+> - research_id
+> - topic_id
+> - topic title
+> - research usability/classification
+> - overall validation score
+> - key findings
+> - supporting evidence references
+> - source references
+> - source diversity information
+> - important factual claims
+> - evidence-backed observations
+> - contradictions or conflicting claims when detectable
+> - research limitations
+> - confidence information
+> - human-readable synthesis rationale
+>
+> Do not invent facts.
+>
+> Every synthesized finding or factual claim must be traceable back to one or more persisted EvidenceData records.
+>
+> The synthesis layer must use ONLY evidence that passed the Research Quality & Evidence Validation subsystem.
+>
+> Rejected or redundant evidence must not be used as primary support for synthesized findings.
+>
+> Preserve traceability.
+>
+> A future writer must be able to determine:
+>
+> `finding -> evidence_id -> source_url`
+>
+> for every important finding.
+>
+> Implement deterministic claim extraction using simple explainable techniques.
+>
+> Do not use an LLM.
+>
+> Do not attempt sophisticated semantic understanding.
+>
+> Prefer transparent heuristics such as:
+>
+> - sentence extraction
+> - sentence ranking
+> - topic-token overlap
+> - keyword frequency
+> - source quality
+> - evidence validation score
+> - repeated factual phrases across independent sources
+>
+> Avoid generating artificial natural-language facts that are not directly present in the evidence.
+>
+> A finding may be represented as a structured object containing:
+>
+> - finding_id
+> - text
+> - evidence_ids
+> - source_urls
+> - confidence
+> - support_count
+>
+> Findings should preferably represent meaningful informational statements rather than arbitrary sentences.
+>
+> Implement deterministic sentence extraction/ranking.
+>
+> Normalize evidence content before processing.
+>
+> Remove obvious boilerplate and empty content.
+>
+> Prefer sentences that:
+>
+> - contain multiple topic-relevant tokens
+> - contain meaningful technical or factual terms
+> - are supported by high-quality evidence
+> - are not duplicated
+>
+> Limit the number of extracted findings to a configurable maximum.
+>
+> Make the maximum configurable with a sensible default.
+>
+> Implement support aggregation.
+>
+> If multiple independent validated evidence sources contain closely matching factual information, increase confidence in the corresponding finding.
+>
+> Do not treat multiple pages from the same domain as independent sources for diversity purposes.
+>
+> Preserve source diversity information from the validation layer.
+>
+> Implement deterministic contradiction detection where reasonably possible.
+>
+> Do not attempt broad natural-language contradiction reasoning.
+>
+> Use transparent signals such as:
+>
+> - opposing numeric values
+> - explicit negation patterns
+> - conflicting statements referring to the same topic keywords
+>
+> If a possible contradiction is detected, record it as a limitation or conflict rather than choosing one claim arbitrarily.
+>
+> Implement research limitations.
+>
+> Limitations should include relevant conditions such as:
+>
+> - insufficient validated evidence
+> - low source diversity
+> - weak evidence support
+> - possible conflicting claims
+> - highly concentrated sourcing
+>
+> Do not delete or modify ResearchData or EvidenceData records.
+>
+> Do not create a second database.
+>
+> Do not create a second repository architecture.
+>
+> Preserve the existing SQLite architecture.
+>
+> If persistence is necessary, extend the existing research persistence model carefully and minimally.
+>
+> Prefer keeping synthesis as a derived deterministic result unless persistence is genuinely required by the existing architecture.
+>
+> The synthesis service must remain independent from the future LLM writing layer.
+>
+> The service must refuse to produce a usable synthesis package when research validation classifies the research as `unusable`.
+>
+> For `insufficient` research, return a result that clearly indicates that the research package is incomplete and additional research may be required.
+>
+> For `acceptable` and `strong` research, produce a structured synthesis package from validated evidence.
+>
+> Define clear confidence rules.
+>
+> Confidence values must remain bounded between `0.0` and `1.0`.
+>
+> The synthesis result must be deterministic and reproducible.
+>
+> Running synthesis twice against unchanged database contents must produce equivalent results.
+>
+> Add deterministic automated tests covering at minimum:
+>
+> 1. Synthesis from strong validated research.
+> 2. Synthesis from acceptable validated research.
+> 3. Refusal/incomplete result for unusable research.
+> 4. Insufficient research handling.
+> 5. Extraction of topic-relevant findings.
+> 6. Finding traceability to evidence IDs.
+> 7. Finding traceability to source URLs.
+> 8. Rejected evidence is not used for synthesis.
+> 9. Duplicate evidence does not create duplicate findings.
+> 10. Multiple independent sources increase finding support/confidence.
+> 11. Same-domain sources are not incorrectly counted as independent sources.
+> 12. Configurable maximum finding count.
+> 13. Deterministic synthesis results.
+> 14. Limitation generation.
+> 15. Basic contradiction/conflict detection.
+> 16. Existing research/evidence persistence remains intact.
+>
+> Tests must not require live internet access or an external LLM.
+>
+> Use deterministic fixtures and isolated temporary databases.
+>
+> Preserve all existing tests.
+>
+> After implementation:
+>
+> - run the complete test suite
+> - verify all existing functionality remains intact
+> - inspect the synthesis model for unnecessary complexity
+> - verify all findings are traceable to persisted evidence
+> - verify rejected evidence cannot become synthesized support
+> - verify source diversity is calculated correctly
+> - verify duplicate findings are avoided
+> - verify deterministic output
+> - verify confidence scores are bounded between 0.0 and 1.0
+> - verify limitations are human-readable
+> - verify unusable research does not produce a falsely usable synthesis
+> - explain all files created or modified
+> - identify assumptions and limitations
+>
+> Do not implement the LLM writer.
+>
+> Do not implement final post generation.
+>
+> Do not implement autonomous scheduling.
+>
+> Do not implement social publishing.
+>
+> Do not modify frontend files.
+>
+> Do not modify unrelated discovery or editorial functionality.
+>
+> Do not commit or push the changes.
+
+**Result:**
+
+Implemented the Research Synthesis & Intelligence Layer in `app/services/research/synthesis.py`. Transforms validated research evidence into a structured, source-grounded intelligence package (`ResearchSynthesisResult`). Extracts candidate findings using sentence ranking, topic-token overlap, and evidence quality heuristics. Consolidates duplicate claims and aggregates support across independent domains while maintaining full bidirectional traceability (`finding -> evidence_ids -> source_urls`). Detects basic numerical and negation conflicts and lists human-readable limitations. Refuses synthesis for `unusable` research and flags `insufficient` research. Added 16 automated unit tests in `tests/test_research_synthesis.py`.
+
+**Human Verification:**
+
+- Verified deterministic sentence extraction, token-overlap ranking, and consolidation into `SynthesizedFinding` objects.
+- Verified finding traceability to evidence IDs and source URLs (`finding -> evidence_ids -> source_urls`).
+- Verified exclusion of rejected evidence items from synthesized findings.
+- Verified support aggregation across distinct domains (independent sources boost finding confidence).
+- Verified domain isolation (multiple pages on same domain count as 1 distinct domain).
+- Verified conflict detection (opposing numeric/negation statements recorded as conflicts).
+- Verified refusal when research is `unusable` and incomplete status when `insufficient`.
+- Performed controlled live synthesis test on real research (`res-c00b46...`): status `ACCEPTABLE`, score `0.84`, confidence `0.98`, 5 clean source-grounded findings generated.
+- Verified complete test suite: 87 passed out of 87 tests.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 87 items
+
+tests\test_agent_init.py .....                                           [  5%]
+tests\test_database.py .....                                             [ 11%]
+tests\test_editorial_engine.py ..........                                [ 22%]
+tests\test_editorial_quality.py ....                                     [ 27%]
+tests\test_research_engine.py ............                               [ 41%]
+tests\test_research_repository.py ...............                        [ 58%]
+tests\test_research_synthesis.py ................                        [ 77%]
+tests\test_research_validation.py ..............                         [ 93%]
+tests\test_topic_discovery.py ......                                     [100%]
+
+======================== 87 passed, 1 warning in 6.06s ========================
+```
+
+**Assumptions & Limitations:**
+
+- **Deterministic Synthesis Heuristics**: Extracted findings and support aggregation rely on sentence ranking, token Jaccard similarity, and keyword overlap rather than external generative LLMs.
+- **Derived In-Memory Results**: `ResearchSynthesisResult` is produced dynamically from persisted `ResearchData`, `EvidenceData`, and `TopicData` without modifying SQLite records.
+
+**Code Review Verification:**
+
+- Verified `synthesize_research()` returns structured `ResearchSynthesisResult`.
+- Verified 100% finding traceability to evidence IDs and source URLs.
+- Verified rejected evidence is excluded from findings support.
+- Verified subsystem isolation from LLM writing, scheduling, publishing, or frontend.
+
+**Commit:**
+
+Pending
