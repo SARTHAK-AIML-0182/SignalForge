@@ -25,6 +25,11 @@ from app.services.research.validation import (
     score_topic_relevance,
     validate_research,
 )
+from app.services.research.writer import (
+    DraftResult,
+    DraftSection,
+    generate_draft,
+)
 
 __all__ = [
     "ResearchResult",
@@ -49,4 +54,7 @@ __all__ = [
     "WritingConstraint",
     "ContentBriefResult",
     "build_content_brief",
+    "DraftSection",
+    "DraftResult",
+    "generate_draft",
 ]

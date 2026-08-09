@@ -1966,3 +1966,562 @@ tests\test_topic_discovery.py ......                                     [100%]
 **Commit:**
 
 feat: add content brief generation layer
+
+
+### Session 012 — Evidence-Grounded Content Writer
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+The following functionality is already implemented and committed:
+
+- FastAPI backend
+- SQLite persistence
+- Agent repository
+- Topic repository
+- Post repository
+- Live RSS/Atom topic discovery
+- Feed parsing and normalization
+- Topic deduplication
+- Editorial judgment engine
+- Multi-factor editorial scoring
+- Selected/rejected topic persistence
+- Research repository
+- Evidence repository
+- Autonomous Research & Evidence Collection Engine
+- Web content extraction
+- Duplicate evidence prevention
+- Deterministic evidence confidence scoring
+- Deterministic research confidence scoring
+- Research Quality & Evidence Validation
+- Evidence-level validation
+- Source quality scoring
+- Content quality scoring
+- Topic/evidence relevance scoring
+- Source diversity scoring
+- Redundancy detection
+- Research Synthesis
+- Finding extraction
+- Finding-to-evidence traceability
+- Conflict detection
+- Research limitations
+- Content Brief generation
+- Supported claims
+- Writing constraints
+- Claim-to-finding-to-evidence-to-source traceability
+- Automated tests
+
+Session 011 established the Content Brief subsystem.
+
+The current pipeline is:
+
+Discovery
+→ Editorial Selection
+→ Research
+→ Evidence Validation
+→ Research Synthesis
+→ Content Brief
+→ Writer
+
+Now implement ONLY the Evidence-Grounded Content Writer subsystem.
+
+The purpose of this subsystem is to transform a validated ContentBriefResult into a structured draft suitable for a future publishing pipeline.
+
+IMPORTANT:
+
+Do not implement social publishing.
+
+Do not implement scheduling.
+
+Do not implement platform-specific publishing.
+
+Do not modify the frontend.
+
+Do not implement autonomous posting.
+
+Do not bypass the Content Brief.
+
+Do not perform fresh research.
+
+Do not directly query the web.
+
+Do not introduce an LLM dependency unless the existing architecture already contains an explicit abstraction designed for it.
+
+For this session, the writer should be deterministic and testable.
+
+The writer must operate ONLY on the validated ContentBriefResult and its supported claims.
+
+--------------------------------------------------
+1. WRITER SERVICE
+--------------------------------------------------
+
+Create a modular service conceptually similar to:
+
+`generate_draft(content_brief) -> DraftResult`
+
+The writer must consume the existing ContentBriefResult.
+
+Do not duplicate the research or validation logic.
+
+Do not independently decide whether evidence is valid.
+
+The Content Brief is the writer's source of truth.
+
+--------------------------------------------------
+2. STRUCTURED DRAFT MODEL
+--------------------------------------------------
+
+Create a structured result such as:
+
+`DraftResult`
+
+It should contain enough information to represent:
+
+- draft_id
+- topic_id
+- research_id
+- title
+- hook/introduction
+- body sections
+- conclusion
+- complete draft text
+- supported claims used
+- source references
+- confidence
+- writing warnings or limitations
+- traceability information
+- whether the draft is publishable
+
+Also create a structured representation for individual draft sections if useful.
+
+Keep the model simple.
+
+Avoid unnecessary abstractions.
+
+--------------------------------------------------
+3. EVIDENCE-GROUNDED WRITING
+--------------------------------------------------
+
+Every substantive claim in the draft must originate from a SupportedClaim in ContentBriefResult.
+
+Maintain explicit traceability:
+
+draft
+→ claim_id
+→ finding_id
+→ evidence_id
+→ source_url
+
+The writer must never invent:
+
+- facts
+- statistics
+- company announcements
+- benchmark results
+- technical capabilities
+- dates
+- quotations
+- source information
+
+If information is not present in the Content Brief, it must not appear as factual content in the draft.
+
+--------------------------------------------------
+4. DETERMINISTIC DRAFT GENERATION
+--------------------------------------------------
+
+Implement deterministic generation using the information already present in:
+
+- topic title
+- topic description
+- content angle
+- audience context
+- supported claims
+- findings
+- writing constraints
+- limitations
+
+The output should read like a coherent technical AI/technology article rather than a raw list of evidence.
+
+Use simple deterministic templates and composition logic.
+
+The system should be able to generate:
+
+1. Title
+2. Hook / introduction
+3. Main body sections
+4. Conclusion
+5. Source references
+
+The exact wording may be deterministic template-driven.
+
+Do not attempt sophisticated natural-language generation.
+
+Do not use an LLM.
+
+--------------------------------------------------
+5. CONTENT ANGLE
+--------------------------------------------------
+
+Use the Content Brief's selected content angle to influence the structure.
+
+For example:
+
+- technical analysis
+- practical implications
+- benchmark-focused analysis
+- enterprise impact
+- research insight
+- emerging technology explanation
+
+Do not create a new angle independently.
+
+--------------------------------------------------
+6. AUDIENCE CONTEXT
+--------------------------------------------------
+
+Respect the audience information already generated by the Content Brief.
+
+The writer should adapt structure and terminology according to the supplied audience context.
+
+Do not invent a new persona.
+
+Do not hardcode unrelated audience assumptions.
+
+--------------------------------------------------
+7. WRITING CONSTRAINTS
+--------------------------------------------------
+
+The writer must respect all WritingConstraint objects supplied by the Content Brief.
+
+At minimum enforce:
+
+- FACTUAL_INTEGRITY
+- EVIDENCE_VALIDATION
+- TRANSPARENCY
+- CONFIDENCE_ACCURACY
+- TRACEABILITY
+- DIVERSITY_HONESTY
+
+If a constraint cannot be satisfied, the draft should contain a warning and should not be marked publishable.
+
+--------------------------------------------------
+8. SOURCE REFERENCES
+--------------------------------------------------
+
+The final draft must preserve source attribution.
+
+Do not fabricate citations.
+
+Every source reference must come from the Content Brief.
+
+Where possible expose:
+
+- source name
+- source URL
+- related claim IDs
+
+The source section should make the evidence provenance understandable.
+
+--------------------------------------------------
+9. LIMITATIONS
+--------------------------------------------------
+
+Research limitations generated by the previous synthesis layer must not disappear.
+
+If the Content Brief contains limitations such as:
+
+- low source diversity
+- limited evidence volume
+- unresolved conflicts
+- incomplete coverage
+
+the draft should transparently acknowledge them when relevant.
+
+Do not present weakly supported research as definitive.
+
+--------------------------------------------------
+10. CONFIDENCE
+--------------------------------------------------
+
+Generate a deterministic draft confidence score between:
+
+`0.0` and `1.0`
+
+Base it only on information already present in the Content Brief.
+
+Do not invent confidence.
+
+A simple explainable calculation is preferred.
+
+For example, confidence can incorporate:
+
+- brief confidence
+- number of supported claims
+- claim support quality
+- evidence coverage
+- limitations
+
+Document the exact formula.
+
+--------------------------------------------------
+11. PUBLISHABILITY
+--------------------------------------------------
+
+The draft must expose:
+
+`is_publishable`
+
+A draft should only be publishable when:
+
+- the Content Brief is usable
+- there is at least one supported claim
+- every substantive section has claim support
+- required writing constraints are satisfied
+- traceability is complete
+- no blocking validation issue exists
+
+If the Content Brief is unusable:
+
+- do not generate a fabricated draft
+- return a non-publishable DraftResult
+- explain why writing cannot proceed
+
+--------------------------------------------------
+12. TRACEABILITY
+--------------------------------------------------
+
+This is critical.
+
+Every generated body section should identify which supported claims it uses.
+
+Maintain mappings such as:
+
+`section_id -> claim_ids`
+
+and therefore:
+
+`section_id -> claim_id -> finding_id -> evidence_id -> source_url`
+
+The final DraftResult must make this traceability inspectable.
+
+--------------------------------------------------
+13. SAFETY AGAINST HALLUCINATION
+--------------------------------------------------
+
+Because this is the final writing stage before future publishing, introduce deterministic safeguards.
+
+The writer must:
+
+- never invent unsupported facts
+- never invent sources
+- never invent quotations
+- never invent numerical values
+- never invent dates
+- never invent entities
+- never claim certainty beyond evidence confidence
+
+If the available information is insufficient, explicitly state that the draft is incomplete or non-publishable.
+
+--------------------------------------------------
+14. DATABASE / PERSISTENCE
+--------------------------------------------------
+
+Do not create a second database.
+
+Do not create a second repository architecture.
+
+Do not modify existing research/evidence records.
+
+The first implementation may keep DraftResult in memory if persistence is not necessary for the current architecture.
+
+If persistence is clearly required by the existing architecture, extend the existing SQLite architecture carefully.
+
+Do not introduce unnecessary database complexity.
+
+--------------------------------------------------
+15. TESTS
+--------------------------------------------------
+
+Create deterministic automated tests.
+
+At minimum test:
+
+1. Successful draft generation from a usable Content Brief.
+2. Non-publishable result when the Content Brief is unusable.
+3. Title generation.
+4. Hook generation.
+5. Body section generation.
+6. Conclusion generation.
+7. Content angle usage.
+8. Audience context usage.
+9. Supported claim usage.
+10. Claim traceability.
+11. Section-to-claim traceability.
+12. Evidence-to-source traceability.
+13. Unsupported claims are not introduced.
+14. Writing constraints are respected.
+15. Research limitations are preserved.
+16. Source references are preserved.
+17. Confidence score is deterministic.
+18. Publishability rules.
+19. Empty/insufficient claims handling.
+20. Existing research and evidence persistence remains intact.
+
+Tests must:
+
+- use deterministic fixtures
+- not require internet
+- not require an LLM
+- not modify production data
+- use isolated temporary databases where persistence is involved
+
+--------------------------------------------------
+16. EXISTING TEST SUITE
+--------------------------------------------------
+
+Preserve all existing tests.
+
+Run the complete test suite after implementation.
+
+The existing test count before this session is:
+
+103 tests.
+
+Do not break existing discovery, editorial, research, validation, synthesis, or content brief functionality.
+
+--------------------------------------------------
+17. ARCHITECTURE
+--------------------------------------------------
+
+Create:
+
+`backend/app/services/research/writer.py`
+
+Create:
+
+`backend/tests/test_research_writer.py`
+
+Update:
+
+`backend/app/services/research/__init__.py`
+
+only as required to expose the writer service/models.
+
+Update:
+
+`prompts.md`
+
+with the complete Session 012 development record.
+
+Do not modify unrelated files.
+
+--------------------------------------------------
+18. CODE QUALITY
+--------------------------------------------------
+
+Keep the implementation:
+
+- modular
+- deterministic
+- explainable
+- small
+- testable
+- strongly typed
+- consistent with the existing SignalForge architecture
+
+Do not over-engineer the writer.
+
+The objective is not to produce human-level prose.
+
+The objective is to establish a reliable evidence-grounded writing layer that can later be replaced or enhanced by an LLM without changing the upstream architecture.
+
+--------------------------------------------------
+19. VERIFICATION
+--------------------------------------------------
+
+After implementation:
+
+- run the complete pytest suite
+- verify all existing tests remain green
+- verify writer tests independently
+- run a controlled live test using an existing Content Brief
+- inspect the generated DraftResult
+- verify every substantive section has claim traceability
+- verify every claim ultimately maps to evidence and source URLs
+- verify no unsupported information is introduced
+- verify limitations are preserved
+- verify confidence is deterministic
+- verify publishability rules
+- inspect the implementation for unnecessary complexity
+- explain every file created or modified
+- identify assumptions and limitations
+- provide a concise code-review verification summary
+
+Do NOT commit or push the changes.
+
+Do NOT implement social publishing.
+
+Do NOT implement scheduling.
+
+Do NOT implement frontend changes.
+
+Do NOT implement an LLM writer.
+
+Do NOT implement autonomous posting.
+
+The next future stage after this should be the publishing/output pipeline, not part of this session.
+
+**Result:**
+
+Implemented the Evidence-Grounded Content Writer in `app/services/research/writer.py`. Transforms a `ContentBriefResult` into a structured, source-grounded article draft (`DraftResult`). Generates deterministic titles, introduction hooks, body sections, conclusions, and full markdown text while preserving 5-level inspectable traceability (`draft -> section_id -> claim_id -> finding_id -> evidence_id -> source_url`). Evaluates draft warnings, enforces mandatory writing constraints, calculates bounded confidence scores (`0.0` to `1.0`), and determines publishability (`is_publishable`). Added 20 automated unit tests in `tests/test_research_writer.py`.
+
+**Human Verification:**
+
+- Verified deterministic title, hook, section, and conclusion composition logic.
+- Verified 5-level inspectable traceability (`draft -> section_id -> claim_id -> finding_id -> evidence_id -> source_url`).
+- Verified zero unsupported claims or external facts introduced into draft text.
+- Verified writing constraints check and limitation preservation.
+- Verified publishability rules (`is_publishable=False` when brief is unusable, zero claims, or contains warnings).
+- Performed controlled live test on real research (`res-c00b46...`): status `Draft ID draft-57615f...`, confidence `0.93`, 5 clean traceable sections generated, publishability `False` due to flagged conflict warning.
+- Verified complete test suite: 123 passed out of 123 tests.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 123 items
+
+tests\test_agent_init.py .....                                           [  4%]
+tests\test_content_brief.py ................                             [ 17%]
+tests\test_database.py .....                                             [ 21%]
+tests\test_editorial_engine.py ..........                                [ 29%]
+tests\test_editorial_quality.py ....                                     [ 32%]
+tests\test_research_engine.py ............                               [ 42%]
+tests\test_research_repository.py ...............                        [ 54%]
+tests\test_research_synthesis.py ................                        [ 67%]
+tests\test_research_validation.py ..............                         [ 78%]
+tests\test_research_writer.py ....................                       [ 95%]
+tests\test_topic_discovery.py ......                                     [100%]
+
+======================= 123 passed, 1 warning in 9.81s ========================
+```
+
+**Assumptions & Limitations:**
+
+- **Deterministic Writing Engine**: Draft composition is driven by structured templates and claim mappings rather than external generative LLMs.
+- **Derived In-Memory Drafts**: `DraftResult` objects are generated as derived in-memory representations of `ContentBriefResult` without modifying underlying SQLite database records.
+
+**Code Review Verification:**
+
+- Verified `generate_draft()` returns structured `DraftResult`.
+- Verified 100% section-to-claim-to-evidence-to-source traceability.
+- Verified zero facts introduced outside Content Brief claims.
+- Verified subsystem isolation from social publishing, scheduling, or frontend.
+
+**Commit:**
+
+feat: add evidence-grounded content writer
+
+
