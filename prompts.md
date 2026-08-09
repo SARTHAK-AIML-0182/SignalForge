@@ -1046,3 +1046,258 @@ plugins: anyio-4.14.2
 collected 57 items
 
 ======================== 57 passed in 4.60s ========================
+
+
+
+### Session 009 — Research Quality & Evidence Validation
+
+**Date:** 2026-08-08
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge autonomous AI persona backend.
+>
+> The following functionality is already implemented and committed:
+>
+> - FastAPI backend
+> - POST /api/agent/init
+> - SQLite persistence
+> - Agent repository
+> - Topic repository
+> - Post repository
+> - Live RSS/Atom topic discovery
+> - Feed parsing and normalization
+> - Network error handling
+> - Topic deduplication
+> - Editorial judgment engine
+> - Multi-factor editorial scoring
+> - Selected/rejected topic persistence
+> - Research repository
+> - Evidence repository
+> - Research/evidence SQLite schema
+> - Autonomous Research & Evidence Collection Engine
+> - Web content extraction
+> - Duplicate evidence prevention
+> - Deterministic evidence confidence scoring
+> - Deterministic research confidence scoring
+> - Automated tests
+>
+> Session 008 established the autonomous research workflow that retrieves and persists source-backed evidence.
+>
+> Now implement ONLY the Research Quality & Evidence Validation subsystem.
+>
+> The purpose of this subsystem is to determine whether collected evidence is sufficiently useful, relevant, reliable, and non-redundant for NOVA to use in a future writing/synthesis stage.
+>
+> IMPORTANT:
+>
+> Do not generate posts.
+>
+> Do not synthesize the final story.
+>
+> Do not use an LLM.
+>
+> Do not implement scheduling.
+>
+> Do not implement social publishing.
+>
+> Do not modify the frontend.
+>
+> Do not replace the existing research engine.
+>
+> Build this as a modular validation layer that operates on the existing ResearchData and EvidenceData models.
+>
+> The validation subsystem should expose a clear service-level interface conceptually similar to:
+>
+> `validate_research(research_id) -> ResearchValidationResult`
+>
+> The validation result should contain enough information to explain:
+>
+> - whether the research is usable
+> - the overall validation score
+> - evidence-level validation results
+> - which evidence items passed or failed validation
+> - the reasons for rejection or acceptance
+> - whether additional research may be required
+>
+> Evaluate evidence using multiple deterministic signals.
+>
+> At minimum evaluate:
+>
+> 1. Source quality
+> 2. Content quality
+> 3. Relevance to the researched topic
+> 4. Evidence completeness
+> 5. Source diversity
+> 6. Redundancy
+>
+> Source quality should consider characteristics such as:
+>
+> - official project/company sources
+> - research papers
+> - technical documentation
+> - established technology publications
+> - unknown or low-quality sources
+>
+> Do not hardcode a large external reputation database.
+>
+> Use a small transparent deterministic classification system that can be expanded later.
+>
+> Content quality should detect obviously weak evidence such as:
+>
+> - extremely short content
+> - empty or nearly empty pages
+> - navigation-only or boilerplate content
+> - pages with insufficient informational content
+>
+> Relevance should be deterministic and should compare the evidence against the topic information already available through TopicRepository.
+>
+> Use simple explainable techniques such as normalized keyword/token overlap rather than an LLM.
+>
+> Evidence completeness should consider whether the research contains enough useful supporting material for the topic.
+>
+> Source diversity should reward evidence coming from meaningfully different sources rather than multiple copies of the same information.
+>
+> Redundancy should detect duplicate or near-duplicate evidence based on normalized URLs and/or normalized content.
+>
+> Do not delete evidence records merely because they fail validation.
+>
+> Evidence is part of NOVA's memory and must remain persisted.
+>
+> Instead, return validation decisions separately and clearly identify rejected/weak evidence.
+>
+> If persistence of validation results is necessary, extend the existing research/evidence persistence model carefully.
+>
+> Do not create a second database.
+>
+> Do not create a second repository architecture.
+>
+> Preserve the existing SQLite architecture.
+>
+> The validator should be deterministic and reproducible.
+>
+> Use bounded scores between `0.0` and `1.0`.
+>
+> Define transparent weights for the validation factors.
+>
+> The overall research validation score should be explainable from the individual factors.
+>
+> Research should be considered usable only when it satisfies a configurable validation threshold and has sufficient usable evidence.
+>
+> The validation threshold must be configurable.
+>
+> The system should be able to distinguish:
+>
+> - strong research
+> - acceptable research
+> - insufficient research
+> - unusable research
+>
+> If research is insufficient, return a result indicating that additional research may be required.
+>
+> Do not automatically launch another research cycle in this session.
+>
+> Keep the validation subsystem independent from the future writing/synthesis subsystem.
+>
+> Add deterministic automated tests covering at minimum:
+>
+> 1. High-quality evidence validation.
+> 2. Low-quality evidence rejection.
+> 3. Source quality scoring.
+> 4. Content quality scoring.
+> 5. Topic/evidence relevance scoring.
+> 6. Evidence completeness scoring.
+> 7. Source diversity scoring.
+> 8. Duplicate evidence detection.
+> 9. Near-duplicate content detection.
+> 10. Configurable validation threshold.
+> 11. Strong research classification.
+> 12. Insufficient research classification.
+> 13. Validation explanations/rationales.
+> 14. Existing research and evidence persistence remaining intact.
+>
+> Tests must not require live internet access or an external LLM.
+>
+> Use deterministic fixtures and isolated temporary databases.
+>
+> Preserve all existing tests.
+>
+> After implementation:
+>
+> - run the complete test suite
+> - verify all existing functionality remains intact
+> - inspect the validation scoring model for unnecessary complexity
+> - verify validation scores are deterministic
+> - verify weak evidence is identified without deleting persisted evidence
+> - verify duplicate and near-duplicate evidence handling
+> - verify configurable validation thresholds
+> - verify validation explanations are human-readable
+> - explain all files created or modified
+> - identify assumptions and limitations
+>
+> Do not implement the LLM writer.
+>
+> Do not implement research synthesis.
+>
+> Do not implement autonomous scheduling.
+>
+> Do not implement social publishing.
+>
+> Do not modify frontend files.
+>
+> Do not modify unrelated discovery or editorial functionality.
+>
+> Do not commit or push the changes.
+
+**Result:**
+
+Implemented the Research Quality & Evidence Validation subsystem in `app/services/research/validation.py`. Evaluates 6 deterministic signals: Source Quality, Content Quality, Topic Relevance, Evidence Completeness, Source Diversity, and Redundancy. Provides analytical evidence-level validation items and overall research classification (`"strong"`, `"acceptable"`, `"insufficient"`, `"unusable"`). Added 14 automated unit tests in `tests/test_research_validation.py`. Zero SQLite evidence records are deleted during validation.
+
+**Human Verification:**
+
+- Verified multi-signal deterministic validation scoring and configurable thresholding (default `0.65`).
+- Verified duplicate URL and near-duplicate text content (Jaccard similarity >= 0.60) detection.
+- Verified evidence rejection with explicit human-readable reasons without deleting persisted SQLite evidence records.
+- Verified quality classification (`"strong"`, `"acceptable"`, `"insufficient"`, `"unusable"`) and `needs_additional_research` flag.
+- Performed controlled live validation test on real research (`res-c00b46...`): status `ACCEPTABLE`, score `0.84`, `is_usable=True`, `needs_additional_research=False`.
+- Verified complete test suite: 71 passed out of 71 tests.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 71 items
+
+tests\test_agent_init.py .....                                           [  7%]
+tests\test_database.py .....                                             [ 14%]
+tests\test_editorial_engine.py ..........                                [ 28%]
+tests\test_editorial_quality.py ....                                     [ 33%]
+tests\test_research_engine.py ............                               [ 50%]
+tests\test_research_repository.py ...............                        [ 71%]
+tests\test_research_validation.py ..............                         [ 91%]
+tests\test_topic_discovery.py ......                                     [100%]
+
+======================== 71 passed, 1 warning in 4.72s ========================
+```
+
+**Assumptions & Limitations:**
+
+- **Analytical In-Memory Validation**: Evidence validation decisions and rejections are computed analytically and returned in `ResearchValidationResult` without altering or deleting SQLite evidence records.
+- **Explainable Heuristics**: Domain tiering and keyword token overlap are used instead of external LLMs or large external domain databases.
+
+**Code Review Verification:**
+
+- Verified `validate_research()` returns structured `ResearchValidationResult`.
+- Verified rejected evidence is retained in SQLite database.
+- Verified deterministic scoring bounded between `0.0` and `1.0`.
+- Verified subsystem isolation from writing, scheduling, publishing, or frontend.
+
+**Commit:**
+
+feat:research and evidence validation
