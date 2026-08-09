@@ -3970,7 +3970,7 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 **Commit:**
 
-feat: persist workflow executions and add status APIs
+`4396160` (feat: persist workflow executions and add status APIs)
 
 
 
