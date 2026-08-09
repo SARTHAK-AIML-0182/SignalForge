@@ -5185,7 +5185,9 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 **Commit:**
 
-Pending
+`d2c4779` (feat(workflow): add execution policy and governance)
+
+
 
 
 
