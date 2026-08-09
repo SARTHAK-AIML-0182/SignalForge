@@ -1,5 +1,11 @@
 """Autonomous Research & Evidence Collection Engine package for SignalForge."""
 
+from app.services.research.content_brief import (
+    ContentBriefResult,
+    SupportedClaim,
+    WritingConstraint,
+    build_content_brief,
+)
 from app.services.research.engine import ResearchResult, research_topic
 from app.services.research.extractor import extract_page_content, fetch_html
 from app.services.research.scorer import compute_research_confidence, score_evidence_confidence
@@ -39,4 +45,8 @@ __all__ = [
     "SynthesizedFinding",
     "ResearchSynthesisResult",
     "synthesize_research",
+    "SupportedClaim",
+    "WritingConstraint",
+    "ContentBriefResult",
+    "build_content_brief",
 ]

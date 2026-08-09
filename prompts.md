@@ -1633,3 +1633,336 @@ tests\test_topic_discovery.py ......                                     [100%]
 feat: add research synthesis and intelligence layer
 
 
+### Session 011 — Writing Preparation & Content Brief Layer
+
+**Date:** 2026-08-09
+
+**Tool:** Google Antigravity
+
+**Developer:** Backend
+
+**Prompt:**
+
+> You are continuing development of the SignalForge autonomous AI persona backend.
+>
+> The following functionality is already implemented and committed:
+>
+> - FastAPI backend
+> - POST /api/agent/init
+> - SQLite persistence
+> - Agent repository
+> - Topic repository
+> - Post repository
+> - Live RSS/Atom topic discovery
+> - Feed parsing and normalization
+> - Network error handling
+> - Topic deduplication
+> - Editorial judgment engine
+> - Multi-factor editorial scoring
+> - Selected/rejected topic persistence
+> - Research repository
+> - Evidence repository
+> - Research/evidence SQLite schema
+> - Autonomous Research & Evidence Collection Engine
+> - Web content extraction
+> - Duplicate evidence prevention
+> - Deterministic evidence confidence scoring
+> - Deterministic research confidence scoring
+> - Research Quality & Evidence Validation subsystem
+> - Source quality validation
+> - Content quality validation
+> - Topic/evidence relevance validation
+> - Evidence completeness validation
+> - Source diversity validation
+> - Duplicate and near-duplicate evidence detection
+> - Configurable validation threshold
+> - Research Synthesis & Intelligence Layer
+> - Deterministic finding extraction
+> - Finding support aggregation
+> - Source diversity handling
+> - Basic conflict detection
+> - Research limitation generation
+> - Full finding-to-evidence-to-source traceability
+> - Automated tests
+>
+> Session 010 established the deterministic Research Synthesis & Intelligence Layer.
+>
+> Now implement ONLY the Writing Preparation & Content Brief Layer.
+>
+> The purpose of this subsystem is to convert a validated ResearchSynthesisResult into a structured, source-grounded Content Brief that a future writing/LLM subsystem can consume.
+>
+> IMPORTANT:
+>
+> Do not generate the final social-media post.
+>
+> Do not implement an LLM writer.
+>
+> Do not call an external LLM.
+>
+> Do not implement social publishing.
+>
+> Do not implement scheduling.
+>
+> Do not modify the frontend.
+>
+> Do not replace the research engine.
+>
+> Do not replace the validation subsystem.
+>
+> Do not replace the synthesis subsystem.
+>
+> Do not automatically launch another research cycle.
+>
+> The Content Brief must be a deterministic derived representation of the existing research synthesis.
+>
+> Conceptually expose a service-level interface such as:
+>
+> `build_content_brief(research_id) -> ContentBriefResult`
+>
+> The Content Brief should form a clean architectural boundary between:
+>
+> `Research Intelligence`
+>
+> and the future:
+>
+> `LLM Writing`
+>
+> The future writer should be able to consume the Content Brief without directly querying the research database.
+>
+> The Content Brief must contain enough structured information to guide writing while remaining completely source-grounded.
+>
+> At minimum include:
+>
+> - research_id
+> - topic_id
+> - topic title
+> - content angle
+> - audience/context
+> - key findings
+> - supported claims
+> - supporting evidence references
+> - source references
+> - confidence information
+> - research limitations
+> - writing constraints
+> - brief usability/classification
+> - human-readable rationale
+>
+> Every important claim must remain traceable:
+>
+> `claim -> finding_id -> evidence_id -> source_url`
+>
+> Do not invent claims.
+>
+> Do not introduce facts that are not present in ResearchSynthesisResult.
+>
+> Do not perform external research.
+>
+> Do not call an LLM.
+>
+> Build the content angle deterministically.
+>
+> The angle should summarize what makes the selected topic worth discussing based on:
+>
+> - editorial relevance
+> - research findings
+> - technical significance
+> - novelty signals already available in the research/topic data
+>
+> Do not invent novelty.
+>
+> If the available data does not support a strong angle, return a neutral evidence-based angle.
+>
+> Build a structured audience/context representation.
+>
+> The audience/context should be derived from the existing agent/topic information and should not introduce unsupported demographic assumptions.
+>
+> Prefer explicit values already stored by the agent or topic repositories.
+>
+> If no explicit audience information exists, use a transparent generic technical/technology audience classification rather than inventing personal attributes.
+>
+> Build supported claims from the synthesized findings.
+>
+> Each claim should contain:
+>
+> - claim_id
+> - claim_text
+> - finding_ids
+> - evidence_ids
+> - source_urls
+> - confidence
+>
+> Claims must not contain information absent from the underlying finding.
+>
+> Preserve source traceability exactly.
+>
+> Do not rewrite claims into stronger statements than the evidence supports.
+>
+> Do not convert uncertain findings into definitive claims.
+>
+> Preserve confidence information.
+>
+> Build writing constraints.
+>
+> The constraints should explicitly tell a future writer what it must NOT do.
+>
+> At minimum include:
+>
+> - do not invent unsupported facts
+> - do not cite rejected evidence
+> - do not hide research limitations
+> - do not overstate confidence
+> - preserve factual traceability
+> - do not claim independent confirmation when evidence comes from the same source domain
+>
+> The constraints must be represented structurally rather than only as prose.
+>
+> Build a ContentBriefResult containing at minimum:
+>
+> - research_id
+> - topic_id
+> - title
+> - angle
+> - audience
+> - claims
+> - findings
+> - sources
+> - limitations
+> - constraints
+> - confidence
+> - is_usable
+> - rationale
+>
+> Use bounded confidence values between `0.0` and `1.0`.
+>
+> The brief should inherit research usability from the ResearchSynthesisResult.
+>
+> If the underlying research is `unusable`, the Content Brief must not be marked usable.
+>
+> If research is `insufficient`, the Content Brief should clearly indicate that additional research may be required.
+>
+> Do not silently convert insufficient research into a fully usable brief.
+>
+> Strong and acceptable research may produce a usable Content Brief if enough validated findings exist.
+>
+> Preserve all source and evidence traceability.
+>
+> Do not persist the Content Brief unless persistence is genuinely required by the existing architecture.
+>
+> Prefer a deterministic derived result if possible.
+>
+> Do not create a second database.
+>
+> Do not create a second repository architecture.
+>
+> Keep the implementation modular under the existing research/content service architecture.
+>
+> Avoid unnecessary abstractions.
+>
+> The implementation should be simple enough that a future LLM writer can clearly understand the contract.
+>
+> Add deterministic automated tests covering at minimum:
+>
+> 1. Content Brief creation from strong research.
+> 2. Content Brief creation from acceptable research.
+> 3. Unusable research produces a non-usable brief.
+> 4. Insufficient research is clearly marked.
+> 5. Content angle generation.
+> 6. Audience/context generation.
+> 7. Claim extraction from synthesized findings.
+> 8. Claim-to-finding traceability.
+> 9. Claim-to-evidence traceability.
+> 10. Claim-to-source traceability.
+> 11. Rejected evidence cannot appear in the brief.
+> 12. Research limitations are preserved.
+> 13. Writing constraints are present and structured.
+> 14. Confidence remains bounded between 0.0 and 1.0.
+> 15. Deterministic output across repeated runs.
+> 16. Existing research and evidence persistence remains intact.
+>
+> Tests must not require live internet access or an external LLM.
+>
+> Use deterministic fixtures and isolated temporary databases.
+>
+> Preserve all existing tests.
+>
+> After implementation:
+>
+> - run the complete test suite
+> - verify all existing functionality remains intact
+> - inspect the Content Brief contract for unnecessary complexity
+> - verify every claim remains traceable
+> - verify rejected evidence cannot leak into the brief
+> - verify research limitations are preserved
+> - verify confidence values are bounded
+> - verify deterministic output
+> - verify unusable research cannot become a usable brief
+> - verify insufficient research is clearly represented
+> - explain all files created or modified
+> - identify assumptions and limitations
+>
+> Do not implement the LLM writer.
+>
+> Do not generate final posts.
+>
+> Do not implement autonomous scheduling.
+>
+> Do not implement social publishing.
+>
+> Do not modify frontend files.
+>
+> Do not modify unrelated discovery or editorial functionality.
+>
+> Do not commit or push the changes.
+
+**Result:**
+
+Implemented the Writing Preparation & Content Brief Layer in `app/services/research/content_brief.py`. Converts a `ResearchSynthesisResult` into a structured, source-grounded Content Brief (`ContentBriefResult`). Generates content angles deterministically, derives audience/context from persona identity, maps findings to `SupportedClaim` objects while preserving 4-level traceability (`claim_id -> finding_id -> evidence_id -> source_url`), and attaches 6 structured mandatory `WritingConstraint` rules. Added 16 automated unit tests in `tests/test_content_brief.py`.
+
+**Human Verification:**
+
+- Verified deterministic content angle and audience context generation.
+- Verified claim-to-finding-to-evidence-to-source traceability (`claim_id -> finding_id -> evidence_id -> source_url`).
+- Verified 6 structured mandatory writing constraints (`FACTUAL_INTEGRITY`, `EVIDENCE_VALIDATION`, `TRANSPARENCY`, `CONFIDENCE_ACCURACY`, `TRACEABILITY`, `DIVERSITY_HONESTY`).
+- Verified rejection when underlying research is `unusable` and incomplete status when `insufficient`.
+- Performed controlled live test on real research (`res-c00b46...`): status `ACCEPTABLE`, brief confidence `0.98`, 5 clean supported claims generated with full traceability.
+- Verified complete test suite: 103 passed out of 103 tests.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 103 items
+
+tests\test_agent_init.py .....                                           [  4%]
+tests\test_content_brief.py ................                             [ 20%]
+tests\test_database.py .....                                             [ 25%]
+tests\test_editorial_engine.py ..........                                [ 34%]
+tests\test_editorial_quality.py ....                                     [ 38%]
+tests\test_research_engine.py ............                               [ 50%]
+tests\test_research_repository.py ...............                        [ 65%]
+tests\test_research_synthesis.py ................                        [ 80%]
+tests\test_research_validation.py ..............                         [ 94%]
+tests\test_topic_discovery.py ......                                     [100%]
+
+======================= 103 passed, 1 warning in 7.87s ========================
+```
+
+**Assumptions & Limitations:**
+
+- **Deterministic Contract Layer**: Content briefs and writing constraints are produced as derived in-memory objects to form a clean contract boundary between Research Intelligence and future LLM Writing without altering SQLite records.
+- **Traceable Claims**: Claims mirror validated synthesized findings directly to ensure no unsupported facts or hallucinations are introduced.
+
+**Code Review Verification:**
+
+- Verified `build_content_brief()` returns structured `ContentBriefResult`.
+- Verified 100% claim-to-finding-to-evidence-to-source traceability.
+- Verified rejected evidence is excluded from brief claims.
+- Verified subsystem isolation from LLM writing, scheduling, publishing, or frontend.
+
+**Commit:**
+
+feat: add content brief generation layer
