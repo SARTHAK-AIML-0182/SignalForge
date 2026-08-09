@@ -35,6 +35,10 @@ from app.services.research import (
     synthesize_research,
     validate_research,
 )
+from app.services.workflow.governance import (
+    WorkflowGovernanceDecision,
+    evaluate_workflow_governance,
+)
 from app.services.workflow.models import (
     AgentWorkflowResult,
     WorkflowConfig,
@@ -65,7 +69,12 @@ def run_agent_workflow(
     Isolates topic-level failures and maintains full 9-stage end-to-end traceability.
     """
     policy = resolve_workflow_policy(config)
+    gov_decision = evaluate_workflow_governance(policy, publishing_adapter=publishing_adapter)
+    if not gov_decision.allowed:
+        raise ValueError(gov_decision.reason)
+
     policy_dict = policy.to_dict()
+    gov_dict = gov_decision.to_dict()
 
     started_at = datetime.now(timezone.utc).isoformat()
     workflow_id = f"wf-{secrets.token_hex(8)}"
@@ -116,6 +125,7 @@ def run_agent_workflow(
                     rationale="Workflow execution completed, but persisting final workflow state failed.",
                     traceability=res.traceability,
                     policy=policy_dict,
+                    governance=gov_dict,
                 )
             return res
 
@@ -144,6 +154,7 @@ def run_agent_workflow(
             rationale="Workflow execution in progress.",
             traceability={},
             policy=policy_dict,
+            governance=gov_dict,
         )
     )
 
@@ -206,6 +217,7 @@ def run_agent_workflow(
                     rationale="Workflow halted: Topic discovery failed completely.",
                     traceability={},
                     policy=policy_dict,
+                    governance=gov_dict,
                 )
             )
 
@@ -271,6 +283,7 @@ def run_agent_workflow(
                     rationale="Workflow halted: Editorial evaluation failed.",
                     traceability={},
                     policy=policy_dict,
+                    governance=gov_dict,
                 )
             )
 
@@ -316,6 +329,7 @@ def run_agent_workflow(
                     rationale="NO CONTENT: Workflow completed cleanly, but zero topics met the editorial selection threshold.",
                     traceability={},
                     policy=policy_dict,
+                    governance=gov_dict,
                 )
             )
 
@@ -715,6 +729,7 @@ def run_agent_workflow(
                 rationale=workflow_rationale,
                 traceability=traceability,
                 policy=policy_dict,
+                governance=gov_dict,
             )
         )
     except Exception as top_exc:
@@ -737,6 +752,7 @@ def run_agent_workflow(
             rationale=f"Workflow halted due to unexpected error: {type(top_exc).__name__}",
             traceability=traceability,
             policy=policy_dict,
+            governance=gov_dict,
         )
         _persist_result(failed_result)
         return failed_result

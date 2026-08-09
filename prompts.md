@@ -5190,4 +5190,565 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 
 
+### Session 020 — Workflow Governance & Safety Gate
+
+You are continuing development of the SignalForge autonomous AI persona backend.
+
+The following functionality is already implemented and tested:
+
+- FastAPI backend
+- SQLite persistence
+- Agent repository
+- Topic repository
+- Research repository
+- Evidence repository
+- Editorial judgment engine
+- Research & Evidence Collection
+- Research Validation
+- Research Synthesis
+- Content Brief generation
+- Deterministic Writer
+- Publishing abstraction
+- Dry-run publishing adapter
+- 9-stage autonomous workflow orchestrator
+- Workflow persistence
+- Workflow stage persistence
+- Workflow status API
+- Workflow history API
+- Workflow inspection API
+- Workflow failure recovery
+- Workflow policy/configuration layer
+- Persistent workflow policy
+- Deterministic traceability
+- 237 automated tests currently passing
+
+The current architecture is approximately:
+
+API
+  ->
+Workflow Policy
+  ->
+Workflow Orchestrator
+  ->
+Workflow Services
+  ->
+Repositories
+  ->
+SQLite
+
+Session 019 introduced WorkflowPolicy and policy validation.
+
+Current policy constraints include:
+
+- max_topics: 1–10
+- editorial_threshold: valid bounded numeric value
+- publication_mode: strictly "dry_run" or "disabled"
+- invalid policies are rejected before workflow persistence/execution
+- live/social publication modes are not allowed
+
+The next goal is to make safety and execution governance an explicit subsystem.
+
+--------------------------------------------------
+1. OBJECTIVE
+--------------------------------------------------
+
+Implement ONLY a Workflow Governance & Safety Gate subsystem.
+
+The governance layer must make execution safety decisions explicitly and centrally before workflow execution begins.
+
+The architecture should become:
+
+API
+  ->
+Workflow Policy
+  ->
+Workflow Governance / Safety Gate
+  ->
+Workflow Orchestrator
+  ->
+Workflow Services
+  ->
+Repositories
+  ->
+SQLite
+
+The governance layer must NOT duplicate workflow execution logic.
+
+It should evaluate the already-resolved WorkflowPolicy and produce a deterministic governance decision.
+
+--------------------------------------------------
+2. IMPORTANT SAFETY CONSTRAINTS
+--------------------------------------------------
+
+Do NOT implement:
+
+- scheduling
+- recurring execution
+- background workers
+- Celery
+- RQ
+- Redis
+- OAuth
+- credential storage
+- real social-media publishing
+- live publishing adapters
+- LLM calls
+- frontend changes
+
+Do not modify unrelated research, editorial, synthesis, writer, discovery, or publishing behavior.
+
+Do not redesign the existing workflow orchestrator.
+
+Do not bypass WorkflowPolicy.
+
+Do not introduce a second database.
+
+--------------------------------------------------
+3. GOVERNANCE MODEL
+--------------------------------------------------
+
+Create a dedicated governance model, for example:
+
+backend/app/services/workflow/governance.py
+
+Define a deterministic governance decision model.
+
+For example:
+
+WorkflowGovernanceDecision
+
+containing appropriate fields such as:
+
+- allowed
+- reason
+- policy
+- blocked_rules
+- warnings
+- publication_allowed
+- execution_mode
+
+Use clear enums/models where appropriate.
+
+Do not create duplicate definitions of WorkflowPolicy or WorkflowStatus.
+
+Reuse existing models.
+
+--------------------------------------------------
+4. GOVERNANCE RULES
+--------------------------------------------------
+
+The governance layer must explicitly evaluate at least:
+
+RULE 1:
+Workflow policy must be valid.
+
+RULE 2:
+max_topics must remain within the existing safe policy bounds.
+
+RULE 3:
+editorial_threshold must remain within the existing safe policy bounds.
+
+RULE 4:
+publication_mode may only be:
+
+- dry_run
+- disabled
+
+RULE 5:
+Any attempt to request live/social/external publishing must be rejected.
+
+RULE 6:
+No publishing credentials may be accepted by the workflow execution API.
+
+RULE 7:
+Governance must not allow arbitrary external adapters to be injected.
+
+RULE 8:
+Governance must produce deterministic decisions.
+
+RULE 9:
+A rejected governance decision must prevent workflow execution.
+
+RULE 10:
+A governance rejection must not create a RUNNING workflow record.
+
+--------------------------------------------------
+5. GOVERNANCE DECISION
+--------------------------------------------------
+
+Create a function such as:
+
+evaluate_workflow_governance(policy)
+
+or equivalent.
+
+It should return a structured decision.
+
+Example conceptual behavior:
+
+Valid dry-run policy:
+
+allowed = True
+execution_mode = "dry_run"
+publication_allowed = True
+reason = deterministic approval reason
+
+Disabled publishing:
+
+allowed = True
+execution_mode = "disabled"
+publication_allowed = False
+
+Invalid/live publishing request:
+
+allowed = False
+execution_mode = "blocked"
+publication_allowed = False
+reason = deterministic rejection reason
+
+Do not hardcode example IDs or workflow-specific values.
+
+--------------------------------------------------
+6. ORCHESTRATOR INTEGRATION
+--------------------------------------------------
+
+Modify run_agent_workflow() so that:
+
+1. Policy is resolved.
+2. Governance is evaluated.
+3. If governance rejects execution:
+   - execution stops immediately
+   - no RUNNING workflow is created
+   - no stage executes
+   - a deterministic/sanitized rejection is returned or raised according to existing architecture
+4. If governance allows execution:
+   - existing workflow execution continues unchanged.
+
+The orchestrator remains the single source of truth for execution.
+
+Do not create a second workflow executor.
+
+--------------------------------------------------
+7. API INTEGRATION
+--------------------------------------------------
+
+Extend the existing workflow API response architecture so governance information can be inspected.
+
+Appropriate responses may include:
+
+- governance_allowed
+- governance_reason
+- execution_mode
+- publication_allowed
+- governance warnings/rules if useful
+
+Do not expose internal Python objects.
+
+Do not expose:
+
+- stack traces
+- database paths
+- filesystem paths
+- credentials
+- internal exception details
+
+If governance rejects a request, return a clean validation/safety response consistent with the existing API architecture.
+
+Prefer HTTP 422 for policy/governance validation failures.
+
+--------------------------------------------------
+8. PERSISTENCE
+--------------------------------------------------
+
+Persist the effective governance decision for successfully started workflows.
+
+The persisted workflow should contain enough information to reconstruct:
+
+- whether governance allowed execution
+- execution mode
+- publication permission
+- governance reason
+
+Do not create unnecessary normalized tables.
+
+A deterministic JSON/text field in the existing workflows table is acceptable if consistent with the current persistence architecture.
+
+Legacy workflow records must remain readable.
+
+Do not modify existing records destructively.
+
+--------------------------------------------------
+9. INSPECTION API
+--------------------------------------------------
+
+Extend:
+
+GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection
+
+so that inspection can expose governance information.
+
+The inspection response should allow a caller to understand:
+
+- policy
+- governance decision
+- execution mode
+- publication permission
+- governance reason
+
+without exposing implementation details.
+
+--------------------------------------------------
+10. HISTORY API
+--------------------------------------------------
+
+Do not unnecessarily duplicate large governance payloads in:
+
+GET /api/agent/{agent_id}/workflows
+
+If useful, summaries may expose a concise execution mode or governance state.
+
+Keep historical responses lightweight.
+
+--------------------------------------------------
+11. TESTING
+--------------------------------------------------
+
+Add deterministic tests.
+
+Use isolated temporary SQLite databases where persistence is involved.
+
+Do not use live internet access.
+
+Do not use external APIs.
+
+Do not use LLMs.
+
+At minimum test:
+
+1. Valid dry-run governance approval.
+2. Valid disabled-publication governance approval.
+3. Invalid max_topics rejection.
+4. Invalid editorial_threshold rejection.
+5. Live publication rejection.
+6. Social publication rejection.
+7. Arbitrary external adapter rejection.
+8. Credential injection rejection.
+9. Deterministic governance decisions.
+10. Governance rejection prevents workflow execution.
+11. Governance rejection creates no RUNNING workflow.
+12. Successful governance decision is persisted.
+13. Governance survives repository re-instantiation.
+14. GET workflow exposes governance state.
+15. GET inspection exposes governance state.
+16. Existing workflow API behavior remains intact.
+17. Existing policy tests remain intact.
+18. Existing failure recovery remains intact.
+19. Existing workflow persistence remains intact.
+20. Existing publishing safety remains intact.
+
+Preserve all existing tests.
+
+Do not weaken tests.
+
+--------------------------------------------------
+12. REGRESSION VERIFICATION
+--------------------------------------------------
+
+Run:
+
+python -m pytest
+
+The complete test suite must pass.
+
+Do not accept partial success.
+
+Inspect failures carefully.
+
+Fix only issues caused by Session 020.
+
+--------------------------------------------------
+13. CONTROLLED LIVE VERIFICATION
+--------------------------------------------------
+
+After tests pass, execute a controlled local workflow using the existing NOVA agent.
+
+Verify:
+
+1. Default dry-run policy is governance-approved.
+2. Workflow executes normally.
+3. Governance state is persisted.
+4. GET workflow returns governance state.
+5. GET inspection returns governance state.
+6. Disabled publication policy is accepted but does not publish.
+7. Invalid/live publication policy is rejected before RUNNING state.
+8. No external publishing occurs.
+9. No LLM calls occur.
+
+Use only local deterministic execution.
+
+--------------------------------------------------
+14. ARCHITECTURAL REQUIREMENTS
+--------------------------------------------------
+
+Maintain strict separation:
+
+API
+  ->
+Policy
+  ->
+Governance
+  ->
+Orchestrator
+  ->
+Services
+  ->
+Repositories
+
+API must not contain governance business logic.
+
+Repositories must not contain HTTP logic.
+
+Governance must not execute workflow stages.
+
+The orchestrator must remain responsible for workflow execution.
+
+--------------------------------------------------
+15. FILES
+--------------------------------------------------
+
+Create only files necessary for this subsystem.
+
+Likely:
+
+backend/app/services/workflow/governance.py
+
+backend/tests/test_workflow_governance.py
+
+backend/tests/test_workflow_governance_api.py
+
+Modify only necessary existing files, likely:
+
+backend/app/services/workflow/__init__.py
+
+backend/app/services/workflow/orchestrator.py
+
+backend/app/services/workflow/models.py
+
+backend/app/api/workflow_schemas.py
+
+backend/app/api/agent.py
+
+backend/app/repositories/workflow_repository.py
+
+backend/app/db/database.py
+
+prompts.md
+
+Do not modify unrelated files.
+
+--------------------------------------------------
+16. FINAL VERIFICATION REPORT
+--------------------------------------------------
+
+After implementation report:
+
+1. Files created.
+2. Files modified.
+3. Governance model.
+4. Governance rules.
+5. Policy -> governance -> orchestrator flow.
+6. API changes.
+7. Persistence changes.
+8. Rejection behavior.
+9. Inspection behavior.
+10. Complete pytest result.
+11. Controlled live verification result.
+12. Assumptions and limitations.
+13. Code-review verification.
+14. Confirmation that no LLM was used.
+15. Confirmation that no real external publishing occurred.
+16. Confirmation that no scheduling/background execution was implemented.
+
+Update prompts.md with the complete Session 020 development record.
+
+Use the existing prompts.md format and numbering.
+
+Do NOT commit or push any changes.
+
+Leave the final Git state uncommitted for manual review.
+
+**Result:**
+
+Implemented an explicit `Workflow Governance & Safety Gate` subsystem for SignalForge in `app/services/workflow/governance.py`. Created `WorkflowGovernanceDecision` dataclass and `evaluate_workflow_governance()` to evaluate 10 explicit safety rules (`max_topics` bounds, `editorial_threshold` bounds, `publication_mode` strictly `"dry_run"` or `"disabled"`, credential injection rejection, arbitrary external adapter rejection). Updated `app/db/database.py` with non-destructive schema migration adding a `governance` JSON column to the `workflows` table. Extended `SQLiteWorkflowRepository` in `workflow_repository.py` to persist and load `governance` JSON while preserving `governance: None` for legacy workflow records. Updated `orchestrator.py` to evaluate governance prior to stage execution or database mutations, ensuring invalid requests raise `ValueError` before setting `RUNNING` status or writing database records. Updated `workflow_schemas.py` and `agent.py` to expose `governance` across POST run, GET status, GET inspection, and GET history endpoints. Added 16 automated unit and API integration tests in `tests/test_workflow_governance.py` and `tests/test_workflow_governance_api.py`.
+
+**Human Verification:**
+
+- Verified `POST /api/agent/{agent_id}/workflow/run` returns HTTP 200 with effective `governance` decision dictionary (`allowed=True`, `execution_mode="dry_run"`, `publication_allowed=True`) when provided valid default or custom parameters.
+- Verified disabled publication requests return HTTP 200 with `execution_mode="disabled"` and `publication_allowed=False`.
+- Verified invalid or live publication requests (`publication_mode="live"`, `publication_mode="social"`, credential injection) return HTTP 422 Unprocessable Entity and create 0 database records.
+- Verified `GET /api/agent/{agent_id}/workflow/{workflow_id}`, `GET /api/agent/{agent_id}/workflow/{workflow_id}/inspection`, and `GET /api/agent/{agent_id}/workflows` return stored `governance` state.
+- Verified legacy workflow records created before Session 020 return `governance: null` gracefully without errors.
+- Executed controlled live verification script (`scratch/test_live_workflow_governance.py`) against `data/signalforge.db`: verified default dry-run governance execution, disabled publication governance execution, and invalid/live policy HTTP 422 rejection, confirming zero real external publishing or LLM calls occurred.
+- Verified complete test suite: 253 passed out of 253 tests.
+- Confirmed that changes were NOT committed or pushed.
+
+**Automated Test Result:**
+
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.11.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: F:\SignalForge\backend
+plugins: anyio-4.14.2
+collected 253 items
+
+tests\test_agent_init.py .....                                           [  1%]
+tests\test_content_brief.py ................                             [  8%]
+tests\test_database.py .....                                             [ 10%]
+tests\test_editorial_engine.py ..........                                [ 14%]
+tests\test_editorial_quality.py ....                                     [ 15%]
+tests\test_publishing.py ..................                              [ 22%]
+tests\test_research_engine.py ............                               [ 27%]
+tests\test_research_repository.py ...............                        [ 33%]
+tests\test_research_synthesis.py ................                        [ 39%]
+tests\test_research_validation.py ..............                         [ 45%]
+tests\test_research_writer.py ....................                       [ 53%]
+tests\test_topic_discovery.py ......                                     [ 55%]
+tests\test_workflow.py ....................                              [ 63%]
+tests\test_workflow_api.py ................                              [ 69%]
+tests\test_workflow_failure_api.py ....                                  [ 71%]
+tests\test_workflow_failure_recovery.py .........                        [ 75%]
+tests\test_workflow_governance.py ............                           [ 79%]
+tests\test_workflow_governance_api.py ....                               [ 81%]
+tests\test_workflow_inspection_api.py ......                             [ 83%]
+tests\test_workflow_observability.py ......                              [ 86%]
+tests\test_workflow_policy.py ...............                            [ 92%]
+tests\test_workflow_policy_api.py .....                                  [ 94%]
+tests\test_workflow_repository.py .......                                [ 96%]
+tests\test_workflow_status_api.py ........                               [100%]
+
+================== 253 passed, 1 warning in 168.05s (0:02:48) ==================
+```
+
+**Assumptions & Limitations:**
+
+- **Execution Modes**: Execution modes are strictly `"dry_run"`, `"disabled"`, or `"blocked"`. Live external publishing is forbidden.
+- **No Retries or Resumption**: Workflows run deterministically based on governance approval without automatic retries or background workers.
+
+**Code Review Verification:**
+
+- Verified `WorkflowGovernanceDecision` model and 10 safety rules in `governance.py`.
+- Verified pre-execution governance evaluation in `orchestrator.py`.
+- Verified non-destructive SQLite migration in `database.py`.
+- Verified HTTP 422 validation handling in `agent.py`.
+- Verified zero real external social media API calls (0 external requests sent).
+- Verified zero LLM calls (100% deterministic logic).
+- Verified zero background scheduling, retries, or background worker processes implemented.
+- Verified all code changes remain uncommitted and unpushed as instructed.
+
+**Commit:**
+
+feat(workflow): add execution governance
+
+
+
 

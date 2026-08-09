@@ -110,8 +110,8 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                     INSERT INTO workflows (
                         workflow_id, agent_id, status, started_at, completed_at,
                         is_successful, halted_at_stage, rationale, selected_topic_ids,
-                        research_ids, draft_ids, publication_ids, traceability, policy
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        research_ids, draft_ids, publication_ids, traceability, policy, governance
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(workflow_id) DO UPDATE SET
                         status = excluded.status,
                         completed_at = excluded.completed_at,
@@ -123,7 +123,8 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                         draft_ids = excluded.draft_ids,
                         publication_ids = excluded.publication_ids,
                         traceability = excluded.traceability,
-                        policy = excluded.policy
+                        policy = excluded.policy,
+                        governance = excluded.governance
                     """,
                     (
                         result.workflow_id,
@@ -140,6 +141,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                         json.dumps(result.publication_ids or []),
                         json.dumps(result.traceability or {}),
                         json.dumps(result.policy or {}),
+                        json.dumps(result.governance or {}),
                     ),
                 )
 
@@ -181,7 +183,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                 """
                 SELECT workflow_id, agent_id, status, started_at, completed_at,
                        is_successful, halted_at_stage, rationale, selected_topic_ids,
-                       research_ids, draft_ids, publication_ids, traceability, policy
+                       research_ids, draft_ids, publication_ids, traceability, policy, governance
                 FROM workflows WHERE workflow_id = ?
                 """,
                 (workflow_id,),
@@ -218,6 +220,9 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
             raw_policy = row["policy"] if "policy" in row.keys() else "{}"
             parsed_policy = json.loads(raw_policy) if raw_policy and raw_policy != "{}" else None
 
+            raw_gov = row["governance"] if "governance" in row.keys() else "{}"
+            parsed_gov = json.loads(raw_gov) if raw_gov and raw_gov != "{}" else None
+
             return AgentWorkflowResult(
                 workflow_id=row["workflow_id"],
                 agent_id=row["agent_id"],
@@ -234,6 +239,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                 rationale=row["rationale"] or "",
                 traceability=json.loads(row["traceability"] or "{}"),
                 policy=parsed_policy,
+                governance=parsed_gov,
             )
         finally:
             conn.close()
@@ -251,7 +257,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
             query = """
                 SELECT workflow_id, agent_id, status, started_at, completed_at,
                        is_successful, halted_at_stage, rationale, selected_topic_ids,
-                       research_ids, draft_ids, publication_ids, traceability, policy
+                       research_ids, draft_ids, publication_ids, traceability, policy, governance
                 FROM workflows WHERE agent_id = ?
             """
             params: List[Union[str, int]] = [agent_id]
@@ -298,6 +304,9 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                 raw_policy = row["policy"] if "policy" in row.keys() else "{}"
                 parsed_policy = json.loads(raw_policy) if raw_policy and raw_policy != "{}" else None
 
+                raw_gov = row["governance"] if "governance" in row.keys() else "{}"
+                parsed_gov = json.loads(raw_gov) if raw_gov and raw_gov != "{}" else None
+
                 results.append(
                     AgentWorkflowResult(
                         workflow_id=row["workflow_id"],
@@ -315,6 +324,7 @@ class SQLiteWorkflowRepository(BaseWorkflowRepository):
                         rationale=row["rationale"] or "",
                         traceability=json.loads(row["traceability"] or "{}"),
                         policy=parsed_policy,
+                        governance=parsed_gov,
                     )
                 )
             return results

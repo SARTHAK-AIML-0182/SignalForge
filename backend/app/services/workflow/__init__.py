@@ -1,5 +1,9 @@
 """Autonomous Agent Workflow Orchestration package for SignalForge."""
 
+from app.services.workflow.governance import (
+    WorkflowGovernanceDecision,
+    evaluate_workflow_governance,
+)
 from app.services.workflow.models import (
     AgentWorkflowResult,
     WorkflowConfig,
@@ -16,6 +20,8 @@ __all__ = [
     "WorkflowConfig",
     "WorkflowPolicy",
     "resolve_workflow_policy",
+    "WorkflowGovernanceDecision",
+    "evaluate_workflow_governance",
     "WorkflowStageResult",
     "AgentWorkflowResult",
     "run_agent_workflow",

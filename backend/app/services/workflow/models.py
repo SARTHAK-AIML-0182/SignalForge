@@ -54,3 +54,4 @@ class AgentWorkflowResult:
     rationale: str
     traceability: Dict[str, Any] = field(default_factory=dict)
     policy: Optional[Dict[str, Any]] = None
+    governance: Optional[Dict[str, Any]] = None

@@ -183,6 +183,7 @@ def run_workflow_endpoint(
         stages=stage_responses,
         traceability=wf_result.traceability,
         policy=wf_result.policy,
+        governance=wf_result.governance,
     )
 
 
@@ -241,6 +242,7 @@ def get_workflow_status_endpoint(
         stages=stage_responses,
         traceability=wf_result.traceability,
         policy=wf_result.policy,
+        governance=wf_result.governance,
     )
 
 
@@ -300,6 +302,7 @@ def inspect_workflow_endpoint(
         publication_count=len(wf.publication_ids or []),
         traceability_summary=trace_summary,
         policy=wf.policy,
+        governance=wf.governance,
     )
 
 
@@ -354,6 +357,7 @@ def list_workflows_endpoint(
             publication_count=len(wf.publication_ids or []),
             publication_ids_count=len(wf.publication_ids or []),
             policy=wf.policy,
+            governance=wf.governance,
         )
         for wf in workflows
     ]
