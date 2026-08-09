@@ -4477,7 +4477,7 @@ tests\test_workflow_status_api.py ........                               [100%]
 
 **Commit:**
 
-feat: add workflow observability and inspection
+`5377ba7` (feat: add workflow observability and inspection)
 
 
 
